@@ -8,21 +8,21 @@ use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::*;
 
 use ed25519_dalek::{
-    Digest, Keypair, PublicKey, Signature, Signer, Verifier, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH,
+    Signature, Signer, SigningKey, Verifier, VerifyingKey, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH,
     SECRET_KEY_LENGTH,
 };
 
-use sha2::{Sha256, Sha512};
-
-use aes_gcm::aead::{AeadInPlace, NewAead};
-use aes_gcm::{Aes256Gcm, Key, Nonce}; // Or `Aes128Gcm`
+use aes_gcm::aead::AeadInPlace;
+use aes_gcm::{Aes256Gcm, Key, KeyInit as _, Nonce}; // Or `Aes128Gcm`
 use core::ops::{Add, Mul, Sub};
+use secrecy::{ExposeSecret, Secret};
+use sha2::{Digest, Sha256, Sha512};
 // use hex::FromHex;
 
 use serde::{Deserialize, Serialize};
 
 pub struct Pre {
-    x: Scalar,
+    x: Secret<Scalar>,
     pub p: EdwardsPoint,
 }
 
@@ -75,15 +75,15 @@ fn scalar_from_256_hash(data: &[u8]) -> Scalar {
 impl Default for Pre {
     fn default() -> Self {
         let key_pair = generate_keypair();
-        Self::new(&key_pair.secret.to_bytes())
+        Self::new(&key_pair.to_bytes())
     }
 }
 
 impl Pre {
     pub fn new(secret: &[u8; 32]) -> Pre {
         let hashed_key = get_hashed_priv_bytes(secret);
-        let x = Scalar::from_bytes_mod_order(hashed_key);
-        let p = constants::ED25519_BASEPOINT_POINT.mul(x);
+        let x = Secret::new(Scalar::from_bytes_mod_order(hashed_key));
+        let p = constants::ED25519_BASEPOINT_POINT.mul(x.expose_secret());
 
         Pre { x, p }
     }
@@ -99,7 +99,7 @@ impl Pre {
         let t_base: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(t);
 
         // write input message
-        let secret_buffer = self.x.to_bytes();
+        let secret_buffer = self.x.expose_secret().to_bytes();
         let concatenated = [tag, &secret_buffer].concat();
         let gen_array = Sha256::digest(&concatenated); // no specified length
 
@@ -121,7 +121,7 @@ impl Pre {
 
         message_checksum.extend(sha2::Sha512::digest(&[msg, &t_bytes[..]].concat()));
 
-        let xb: [u8; 32] = self.x.to_bytes();
+        let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
         let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, &xb[..]].concat());
 
@@ -146,7 +146,7 @@ impl Pre {
     }
 
     pub fn self_decrypt(&self, msg: &EncryptedMessage) -> Vec<u8> {
-        let xb: Vec<u8> = self.x.to_bytes().to_vec();
+        let xb: Vec<u8> = self.x.expose_secret().to_bytes().to_vec();
         let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[&msg.tag, &xb[..]].concat());
 
         let prep_checksum = [
@@ -195,7 +195,7 @@ impl Pre {
         let p: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(*public_key)
             .decompress()
             .unwrap(); // self.curve.pointFromBuffer(publicKey);
-        let xb: [u8; 32] = self.x.to_bytes();
+        let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
         let r: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
         let h: Scalar = scalar_from_256_hash(&[&tag, &xb[..]].concat());
@@ -283,7 +283,7 @@ impl Pre {
             .decompress()
             .unwrap(); // pointFromBuffer
 
-        let tx_g = d_5.mul(self.x); //  x * D5 = x * tG
+        let tx_g = d_5.mul(self.x.expose_secret()); //  x * D5 = x * tG
 
         // scalarFromHash is sha512
         let b_inv: Scalar = Scalar::hash_from_bytes::<Sha512>(
@@ -298,7 +298,7 @@ impl Pre {
         )
         .invert();
 
-        let x_inv = self.x.invert();
+        let x_inv = self.x.expose_secret().invert();
 
         let t_1 = d_1.mul(b_inv);
         let t_2 = d_4.mul(x_inv);
@@ -341,8 +341,8 @@ pub fn decrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
 
 pub fn encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     // setup cipher
-    let key = Key::from_slice(key);
-    let cipher = Aes256Gcm::new(key);
+    let key = Key::<Aes256Gcm>::from_slice(key);
+    let cipher = Aes256Gcm::new(&key);
     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
                                        // let mut buffer: Vec<u8, 128> = Vec::new(); // Buffer needs 16-bytes overhead for GCM tag
                                        // Buffer needs 16-bytes overhead for GCM tag
@@ -362,7 +362,7 @@ pub fn encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
 }
 
 pub fn decrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
-    let key = Key::from_slice(key);
+    let key = Key::<Aes256Gcm>::from_slice(key);
     let cipher = Aes256Gcm::new(key);
     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
 
@@ -377,18 +377,18 @@ pub fn decrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     buffer // return plaintext
 }
 
-pub fn assert_keypair(keypair: &Keypair) -> bool {
+pub fn assert_keypair(signing: &SigningKey) -> bool {
     let message: &[u8] = b"This is a test of the tsunami alert system.";
-    let signature: Signature = keypair.sign(message);
-    keypair.verify(message, &signature).is_ok()
+    let signature: Signature = signing.sign(message);
+    signing.verify(message, &signature).is_ok()
 }
 
-pub fn sign(keypair: &Keypair, message: &[u8]) -> Signature {
-    keypair.sign(message)
+pub fn sign(signing: &SigningKey, message: &[u8]) -> Signature {
+    signing.sign(message)
 }
 
 // fn verify(&self, message: &[u8], signature: &ed25519::Signature)
-pub fn verify(public_key: PublicKey, message: &[u8], signature: Signature) -> bool {
+pub fn verify(public_key: VerifyingKey, message: &[u8], signature: Signature) -> bool {
     public_key.verify(message, &signature).is_ok()
 }
 
@@ -413,13 +413,13 @@ pub fn get_hashed_priv_bytes(secret: &[u8; 32]) -> [u8; 32] {
     hashed_priv_key
 }
 
-pub fn generate_keypair() -> Keypair {
+pub fn generate_keypair() -> SigningKey {
     let mut secret_key_bytes = [0u8; SECRET_KEY_LENGTH];
     getrandom::getrandom(&mut secret_key_bytes).unwrap();
     keypair_from_seed(&secret_key_bytes)
 }
 
-pub fn keypair_from_seed(secret_key_bytes: &[u8; SECRET_KEY_LENGTH]) -> ed25519_dalek::Keypair {
+pub fn keypair_from_seed(secret_key_bytes: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
     let hashed_priv_key = get_hashed_priv_bytes(secret_key_bytes);
     let key = Scalar::from_bytes_mod_order(hashed_priv_key);
     let public_key: [u8; PUBLIC_KEY_LENGTH] = constants::ED25519_BASEPOINT_POINT
@@ -431,7 +431,7 @@ pub fn keypair_from_seed(secret_key_bytes: &[u8; SECRET_KEY_LENGTH]) -> ed25519_
     let mut keypair: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
 
     keypair.copy_from_slice(&concat[..]);
-    let kp = Keypair::from_bytes(&keypair).unwrap();
+    let kp = SigningKey::from_bytes(secret_key_bytes);
     assert_keypair(&kp);
     kp
 }
@@ -454,12 +454,12 @@ mod tests {
         // BOB
         let bob_keypair = generate_keypair();
         //  `bob` creates to DE-encrypt
-        let bob_pre = Pre::new(&bob_keypair.secret.to_bytes());
+        let bob_pre = Pre::new(&bob_keypair.to_bytes());
 
         // check to see if match
         assert_eq!(
             bob_pre.p.compress().to_bytes(),
-            bob_keypair.public.to_bytes()
+            bob_keypair.verifying_key().to_bytes()
         );
 
         //  `alice` self-encrypts data with a tag
@@ -472,11 +472,14 @@ mod tests {
         assert_eq!(data, &decrypted_message[..]);
 
         //  `alice` re-keys the file to allow for `bob` to access the data
-        let re_key = alice_pre.generate_re_key(&bob_keypair.public.to_bytes(), tag);
+        let re_key = alice_pre.generate_re_key(&bob_keypair.verifying_key().to_bytes(), tag);
 
         //  `proxy` re-encrypts it for `bob`
-        let re_encrypted_message =
-            Pre::re_encrypt(&bob_keypair.public.to_bytes(), encrypted_message, re_key); // bob, res, reKey, curve
+        let re_encrypted_message = Pre::re_encrypt(
+            &bob_keypair.verifying_key().to_bytes(),
+            encrypted_message,
+            re_key,
+        ); // bob, res, reKey, curve
 
         //  `bob` decrypts it
         let data_2 = bob_pre.re_decrypt(&re_encrypted_message);

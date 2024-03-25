@@ -7,11 +7,12 @@ rust-version = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ed25519-dalek = "1.0.1"
-curve25519-dalek = "3"
+ed25519-dalek = "2.1.1"
+curve25519-dalek = "4"
 getrandom = { version = "0.2" } # // works in wasm/js/browser
 serde = { version = "1.0", features = ["derive"] }
-sha2 = "0.9.8"
+sha2 = "0.10.8"
 hex = "0.4.3"
-aes-gcm = "0.9.4"
-hex-literal = "0.3.3"
+aes-gcm = "0.10.3"
+hex-literal = "0.4.1"
+secrecy = "0.8.0"
