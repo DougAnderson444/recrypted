@@ -4,15 +4,28 @@ version = "0.1.0"
 edition = "2021"
 rust-version = { workspace = true }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 ed25519-dalek = "2.1.1"
-curve25519-dalek = "4"
+curve25519-dalek = "4.1.2"
 getrandom = { version = "0.2" } # // works in wasm/js/browser
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10.8"
 hex = "0.4.3"
-aes-gcm = "0.10.3"
 hex-literal = "0.4.1"
 secrecy = "0.8.0"
+# ecies is used for their AES symmetric encryption module only
+ecies = { version = "0.2.6", default-features = false, features = ["pure", "std"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
+# only for js (browser or node). if it's not js, like substrate, it won't build
+getrandom = {version = "0.2.12", default-features = false, features = ["js"]}
+wasm-bindgen = {version = "0.2.92", default-features = false}
+
+[target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
+# allows wasm32-wasi to build
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3.42"

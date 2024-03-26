@@ -10,18 +10,19 @@ use ed25519_dalek::{
     SECRET_KEY_LENGTH,
 };
 
-use aes_gcm::aead::AeadInPlace;
-use aes_gcm::{Aes256Gcm, Key, KeyInit as _, Nonce}; // Or `Aes128Gcm`
 use core::ops::{Add, Mul, Sub};
-use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret};
+use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, Zeroize};
 use sha2::{Digest, Sha256, Sha512};
 // use hex::FromHex;
 
 use serde::{Deserialize, Serialize};
 
+// borrow ecies::symmetric::sym_encrypt for convenience
+use ecies::symmetric::{sym_decrypt, sym_encrypt};
+
 pub struct Pre {
     x: Secret<Scalar>,
-    pub p: EdwardsPoint,
+    pub(crate) p: EdwardsPoint,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -94,7 +95,7 @@ impl Pre {
 
         let t: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
 
-        let t_base: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(t);
+        let mut t_base: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(t);
 
         // write input message
         let secret_buffer = self.x.expose_secret().to_bytes();
@@ -104,22 +105,29 @@ impl Pre {
         let mut sized: [u8; 32] = Default::default();
         sized.copy_from_slice(&gen_array[..]); // has to be [0..32]
 
-        // convert hashed to Scalar
-        let h: Scalar = Scalar::from_bytes_mod_order(sized);
-        let h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
+        // convert hashed to Scalar. Scalar is zeriozed by dalek
+        let mut h: Scalar = Scalar::from_bytes_mod_order(sized);
+        let mut h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
 
         let encrypted_key: [u8; 32] = t_base.add(&h_g).compress().to_bytes();
         let t_bytes = Zeroizing::new(t_base.compress().to_bytes());
 
         //  encrypt msg using key
-        let mut secret_key: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
+        let mut key: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
         // let key_hash = sha2::Sha512::digest(t_bytes);
-        secret_key.extend(&sha2::Sha512::digest(&t_bytes));
-        let encrypted_data = encrypt_symmetric(msg, &secret_key);
+        key.extend(&sha2::Sha256::digest(&t_bytes));
+        let encrypted_data = sym_encrypt(&key, msg).unwrap();
 
         let mut message_checksum: Vec<u8> = Vec::default();
 
         message_checksum.extend(sha2::Sha512::digest([msg, t_bytes.as_ref()].concat()));
+
+        // Clean up sensitive data in memory: Zeroize and drop.
+        drop(key);
+        drop(t_bytes);
+        h.zeroize();
+        h_g.zeroize();
+        t_base.zeroize();
 
         let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
@@ -166,21 +174,28 @@ impl Pre {
         );
 
         // hash1
-        let h: Scalar = scalar_from_256_hash(&[&msg.tag, &xb[..]].concat());
-        let h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
+        let mut h: Scalar = scalar_from_256_hash(&[&msg.tag, &xb[..]].concat());
+        let mut h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
 
         let encrypted_key: EdwardsPoint =
             curve25519_dalek::edwards::CompressedEdwardsY(msg.encrypted_key)
                 .decompress()
                 .unwrap();
-        let t_bytes = encrypted_key.sub(h_g).compress().to_bytes();
-        let key = sha2::Sha512::digest(t_bytes);
-        let data = decrypt_symmetric(&msg.encrypted_data, &key);
+        let t_bytes = Zeroizing::new(encrypted_key.sub(h_g).compress().to_bytes());
+
+        let mut key: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
+        key.extend(&sha2::Sha256::digest(&t_bytes));
+        let data = sym_decrypt(&key, &msg.encrypted_data).unwrap();
 
         // hash3
         // check2
         let mut message_checksum: Vec<u8> = Vec::default();
         message_checksum.extend(sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()));
+
+        h.zeroize();
+        h_g.zeroize();
+        drop(key);
+        drop(t_bytes);
 
         assert_eq!(
             message_checksum, msg.message_checksum,
@@ -303,9 +318,12 @@ impl Pre {
         let t_1 = d_1.mul(b_inv);
         let t_2 = d_4.mul(x_inv);
         let t_bytes = t_1.sub(t_2).compress().to_bytes();
-        let key = sha2::Sha512::digest(t_bytes);
 
-        let data = decrypt_symmetric(&d.d_2, &key);
+        let mut key = Zeroizing::new(Vec::new());
+        key.extend(&sha2::Sha256::digest(t_bytes));
+        let data = sym_decrypt(&key, &d.d_2).unwrap();
+
+        drop(key);
 
         // hash 3
         let check_2 = sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()).to_vec();
@@ -318,64 +336,64 @@ impl Pre {
     }
 }
 
-pub fn encrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
-    let mut key = [0u8; 32]; // ensure it's 32 bytes long
-    key.copy_from_slice(&hashed_key[0..32]); // take the first 32 here...
-
-    let mut nonce = [0u8; 12]; // take the last 32 + an extra 12 here
-    nonce.copy_from_slice(&hashed_key[32..44]);
-
-    encrypt(data, &key, &nonce)
-}
-
-pub fn decrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
-    let mut key = [0u8; 32]; // ensure it's 32 bytes long
-    key.copy_from_slice(&hashed_key[0..32]); // take the first 32 here...
-
-    let mut nonce = [0u8; 12]; // take the last 32 + an extra 12 here
-    nonce.copy_from_slice(&hashed_key[32..44]);
-    let d = data.to_vec();
-
-    decrypt(&d, &key, &nonce)
-}
-
-pub fn encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
-    // setup cipher
-    let key = Key::<Aes256Gcm>::from_slice(key);
-    let cipher = Aes256Gcm::new(key);
-    let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
-                                       // let mut buffer: Vec<u8, 128> = Vec::new(); // Buffer needs 16-bytes overhead for GCM tag
-                                       // Buffer needs 16-bytes overhead for GCM tag
-                                       // Buffer also needs to be bigger enough to take the ciphertext, which is longer than plaintext data
-    let mut buffer = Vec::with_capacity(128);
-    buffer.extend_from_slice(data); // b"plaintext message"
-
-    let associated_data = b""; // empty for now
-
-    // Encrypt `buffer` in-place, replacing the plaintext contents with ciphertext
-    cipher
-        .encrypt_in_place(nonce, associated_data, &mut buffer)
-        .expect("encryption failure!");
-
-    // `buffer` now contains the message ciphertext + GCM tag
-    buffer // return the ciphertext buffer
-}
-
-pub fn decrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
-    let key = Key::<Aes256Gcm>::from_slice(key);
-    let cipher = Aes256Gcm::new(key);
-    let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
-
-    let mut buffer = Vec::with_capacity(128);
-    buffer.extend_from_slice(data); // b"plaintext message"
-
-    let associated_data = b""; // empty for now
-
-    cipher
-        .decrypt_in_place(nonce, associated_data, &mut buffer)
-        .expect("decryption failure!");
-    buffer // return plaintext
-}
+// pub fn encrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
+//     let mut key = [0u8; 32]; // ensure it's 32 bytes long
+//     key.copy_from_slice(&hashed_key[0..32]); // take the first 32 here...
+//
+//     let mut nonce = [0u8; 12]; // take the last 32 + an extra 12 here
+//     nonce.copy_from_slice(&hashed_key[32..44]);
+//
+//     encrypt(data, &key, &nonce)
+// }
+//
+// pub fn decrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
+//     let mut key = [0u8; 32]; // ensure it's 32 bytes long
+//     key.copy_from_slice(&hashed_key[0..32]); // take the first 32 here...
+//
+//     let mut nonce = [0u8; 12]; // take the last 32 + an extra 12 here
+//     nonce.copy_from_slice(&hashed_key[32..44]);
+//     let d = data.to_vec();
+//
+//     decrypt(&d, &key, &nonce)
+// }
+//
+// pub fn encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
+//     // setup cipher
+//     let key = Key::<Aes256Gcm>::from_slice(key);
+//     let cipher = Aes256Gcm::new(key);
+//     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
+//                                        // let mut buffer: Vec<u8, 128> = Vec::new(); // Buffer needs 16-bytes overhead for GCM tag
+//                                        // Buffer needs 16-bytes overhead for GCM tag
+//                                        // Buffer also needs to be bigger enough to take the ciphertext, which is longer than plaintext data
+//     let mut buffer = Vec::with_capacity(128);
+//     buffer.extend_from_slice(data); // b"plaintext message"
+//
+//     let associated_data = b""; // empty for now
+//
+//     // Encrypt `buffer` in-place, replacing the plaintext contents with ciphertext
+//     cipher
+//         .encrypt_in_place(nonce, associated_data, &mut buffer)
+//         .expect("encryption failure!");
+//
+//     // `buffer` now contains the message ciphertext + GCM tag
+//     buffer // return the ciphertext buffer
+// }
+//
+// pub fn decrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
+//     let key = Key::<Aes256Gcm>::from_slice(key);
+//     let cipher = Aes256Gcm::new(key);
+//     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
+//
+//     let mut buffer = Vec::with_capacity(128);
+//     buffer.extend_from_slice(data); // b"plaintext message"
+//
+//     let associated_data = b""; // empty for now
+//
+//     cipher
+//         .decrypt_in_place(nonce, associated_data, &mut buffer)
+//         .expect("decryption failure!");
+//     buffer // return plaintext
+// }
 
 pub fn assert_keypair(signing: &SigningKey) -> bool {
     let message: &[u8] = b"This is a test of the tsunami alert system.";
@@ -447,7 +465,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_recrypt() {
+    pub(super) fn test_recrypt() {
         //  `alice` create new proxy re-encryptor
         let alice_pre = Pre::default();
 
@@ -484,5 +502,15 @@ mod tests {
         //  `bob` decrypts it
         let data_2 = bob_pre.re_decrypt(&re_encrypted_message);
         assert_eq!(data, &data_2[..]);
+    }
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_tests {
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_wasm() {
+        super::tests::test_recrypt();
     }
 }
