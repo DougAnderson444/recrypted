@@ -50,19 +50,6 @@ pub struct ReEncryptedMessage {
     d_5: [u8; 32], //  Point
 }
 
-// fn convert_from_hex(s: &str) -> [u8; 32] {
-//     let mut input: [u8; 32] = Default::default();
-//     match Vec::from_hex(s) {
-//         Ok(vec) => {
-//             input.copy_from_slice(&vec[..]);
-//         }
-//         Err(_e) => {
-//             // Deal with the error ...
-//         }
-//     }
-//     return input;
-// }
-
 fn scalar_from_256_hash(data: &[u8]) -> Scalar {
     let gen_array = Sha256::digest(data); // no specified length
     let mut sized: [u8; 32] = Default::default(); // has to be [0..32]
@@ -313,20 +300,21 @@ impl Pre {
         )
         .invert();
 
-        let x_inv = self.x.expose_secret().invert();
-
         let t_1 = d_1.mul(b_inv);
-        let t_2 = d_4.mul(x_inv);
-        let t_bytes = t_1.sub(t_2).compress().to_bytes();
+        let mut t_2 = d_4.mul(self.x.expose_secret().invert());
+        let mut t_bytes = Zeroizing::new(t_1.sub(t_2).compress().to_bytes());
 
         let mut key = Zeroizing::new(Vec::new());
-        key.extend(&sha2::Sha256::digest(t_bytes));
+        key.extend(&sha2::Sha256::digest(&t_bytes));
         let data = sym_decrypt(&key, &d.d_2).unwrap();
 
         drop(key);
 
         // hash 3
         let check_2 = sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()).to_vec();
+
+        t_bytes.zeroize();
+        t_2.zeroize();
 
         if !check_2.eq(&d.d_3) {
             panic!("Overall Checksum Failure!");
@@ -335,65 +323,6 @@ impl Pre {
         data
     }
 }
-
-// pub fn encrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
-//     let mut key = [0u8; 32]; // ensure it's 32 bytes long
-//     key.copy_from_slice(&hashed_key[0..32]); // take the first 32 here...
-//
-//     let mut nonce = [0u8; 12]; // take the last 32 + an extra 12 here
-//     nonce.copy_from_slice(&hashed_key[32..44]);
-//
-//     encrypt(data, &key, &nonce)
-// }
-//
-// pub fn decrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
-//     let mut key = [0u8; 32]; // ensure it's 32 bytes long
-//     key.copy_from_slice(&hashed_key[0..32]); // take the first 32 here...
-//
-//     let mut nonce = [0u8; 12]; // take the last 32 + an extra 12 here
-//     nonce.copy_from_slice(&hashed_key[32..44]);
-//     let d = data.to_vec();
-//
-//     decrypt(&d, &key, &nonce)
-// }
-//
-// pub fn encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
-//     // setup cipher
-//     let key = Key::<Aes256Gcm>::from_slice(key);
-//     let cipher = Aes256Gcm::new(key);
-//     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
-//                                        // let mut buffer: Vec<u8, 128> = Vec::new(); // Buffer needs 16-bytes overhead for GCM tag
-//                                        // Buffer needs 16-bytes overhead for GCM tag
-//                                        // Buffer also needs to be bigger enough to take the ciphertext, which is longer than plaintext data
-//     let mut buffer = Vec::with_capacity(128);
-//     buffer.extend_from_slice(data); // b"plaintext message"
-//
-//     let associated_data = b""; // empty for now
-//
-//     // Encrypt `buffer` in-place, replacing the plaintext contents with ciphertext
-//     cipher
-//         .encrypt_in_place(nonce, associated_data, &mut buffer)
-//         .expect("encryption failure!");
-//
-//     // `buffer` now contains the message ciphertext + GCM tag
-//     buffer // return the ciphertext buffer
-// }
-//
-// pub fn decrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
-//     let key = Key::<Aes256Gcm>::from_slice(key);
-//     let cipher = Aes256Gcm::new(key);
-//     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
-//
-//     let mut buffer = Vec::with_capacity(128);
-//     buffer.extend_from_slice(data); // b"plaintext message"
-//
-//     let associated_data = b""; // empty for now
-//
-//     cipher
-//         .decrypt_in_place(nonce, associated_data, &mut buffer)
-//         .expect("decryption failure!");
-//     buffer // return plaintext
-// }
 
 pub fn assert_keypair(signing: &SigningKey) -> bool {
     let message: &[u8] = b"This is a test of the tsunami alert system.";
