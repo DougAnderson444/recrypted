@@ -3,8 +3,6 @@
 #[cfg(doctest)]
 pub struct ReadmeDoctests;
 
-use curve25519_dalek::edwards::EdwardsPoint;
-use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::*;
 
 use ed25519_dalek::{
@@ -15,7 +13,7 @@ use ed25519_dalek::{
 use aes_gcm::aead::AeadInPlace;
 use aes_gcm::{Aes256Gcm, Key, KeyInit as _, Nonce}; // Or `Aes128Gcm`
 use core::ops::{Add, Mul, Sub};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret};
 use sha2::{Digest, Sha256, Sha512};
 // use hex::FromHex;
 
@@ -101,7 +99,7 @@ impl Pre {
         // write input message
         let secret_buffer = self.x.expose_secret().to_bytes();
         let concatenated = [tag, &secret_buffer].concat();
-        let gen_array = Sha256::digest(&concatenated); // no specified length
+        let gen_array = Sha256::digest(concatenated); // no specified length
 
         let mut sized: [u8; 32] = Default::default();
         sized.copy_from_slice(&gen_array[..]); // has to be [0..32]
@@ -111,15 +109,17 @@ impl Pre {
         let h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
 
         let encrypted_key: [u8; 32] = t_base.add(&h_g).compress().to_bytes();
-        let t_bytes: [u8; 32] = t_base.compress().to_bytes();
+        let t_bytes = Zeroizing::new(t_base.compress().to_bytes());
 
         //  encrypt msg using key
-        let key_hash = sha2::Sha512::digest(&t_bytes);
-        let encrypted_data = encrypt_symmetric(msg, &key_hash[..]);
+        let mut secret_key: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
+        // let key_hash = sha2::Sha512::digest(t_bytes);
+        secret_key.extend(&sha2::Sha512::digest(&t_bytes));
+        let encrypted_data = encrypt_symmetric(msg, &secret_key);
 
         let mut message_checksum: Vec<u8> = Vec::default();
 
-        message_checksum.extend(sha2::Sha512::digest(&[msg, &t_bytes[..]].concat()));
+        message_checksum.extend(sha2::Sha512::digest([msg, t_bytes.as_ref()].concat()));
 
         let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
@@ -174,13 +174,13 @@ impl Pre {
                 .decompress()
                 .unwrap();
         let t_bytes = encrypted_key.sub(h_g).compress().to_bytes();
-        let key = sha2::Sha512::digest(&t_bytes);
+        let key = sha2::Sha512::digest(t_bytes);
         let data = decrypt_symmetric(&msg.encrypted_data, &key);
 
         // hash3
         // check2
         let mut message_checksum: Vec<u8> = Vec::default();
-        message_checksum.extend(sha2::Sha512::digest(&[&data[..], &t_bytes[..]].concat()));
+        message_checksum.extend(sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()));
 
         assert_eq!(
             message_checksum, msg.message_checksum,
@@ -198,7 +198,7 @@ impl Pre {
         let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
         let r: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
-        let h: Scalar = scalar_from_256_hash(&[&tag, &xb[..]].concat());
+        let h: Scalar = scalar_from_256_hash(&[tag, &xb[..]].concat());
 
         let r3_scalar: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, &xb[..]].concat()); // sha512
 
@@ -303,12 +303,12 @@ impl Pre {
         let t_1 = d_1.mul(b_inv);
         let t_2 = d_4.mul(x_inv);
         let t_bytes = t_1.sub(t_2).compress().to_bytes();
-        let key = sha2::Sha512::digest(&t_bytes);
+        let key = sha2::Sha512::digest(t_bytes);
 
         let data = decrypt_symmetric(&d.d_2, &key);
 
         // hash 3
-        let check_2 = sha2::Sha512::digest(&[&data[..], &t_bytes[..]].concat()).to_vec();
+        let check_2 = sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()).to_vec();
 
         if !check_2.eq(&d.d_3) {
             panic!("Overall Checksum Failure!");
@@ -342,7 +342,7 @@ pub fn decrypt_symmetric(data: &[u8], hashed_key: &[u8]) -> Vec<u8> {
 pub fn encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     // setup cipher
     let key = Key::<Aes256Gcm>::from_slice(key);
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = Aes256Gcm::new(key);
     let nonce = Nonce::from_slice(iv); // unique per message, equiv to iv (init vector)
                                        // let mut buffer: Vec<u8, 128> = Vec::new(); // Buffer needs 16-bytes overhead for GCM tag
                                        // Buffer needs 16-bytes overhead for GCM tag
