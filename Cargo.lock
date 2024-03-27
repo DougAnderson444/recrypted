@@ -160,6 +160,7 @@ dependencies = [
  "digest 0.10.7",
  "fiat-crypto",
  "platforms",
+ "rand_core",
  "rustc_version",
  "subtle",
  "zeroize",
@@ -242,6 +243,7 @@ checksum = "4a3daa8e81a3963a60642bcc1f90a670680bd4a77535faa384e9d1c79d620871"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
+ "rand_core",
  "serde",
  "sha2",
  "subtle",
@@ -511,6 +513,7 @@ dependencies = [
  "getrandom",
  "hex",
  "hex-literal",
+ "rand_core",
  "secrecy",
  "serde",
  "sha2",

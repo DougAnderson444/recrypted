@@ -39,13 +39,21 @@ let data_2 = bob_pre.re_decrypt(&re_encrypted_message);
 assert_eq!(data, data_2.as_slice());
 ```
 
-## Tests
+## [Tests](https://doc.rust-lang.org/cargo/commands/cargo-test.html)
+
+Using [just](https://just.systems/):
+
+```bash
+just test
+```
+
+Or, using cargo:
 
 ```bash
 cargo test
 ```
 
-wasm-bindgen tests
+For wasm-bindgen tests:
 
 ```bash
 wasm-pack test --node
