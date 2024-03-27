@@ -1,0 +1,23 @@
+[package]
+name = "recrypted-component"
+version = "0.1.0"
+edition = "2021"
+rust-version.workspace = true
+
+[dependencies]
+bitflags = "2.5.0"
+wit-bindgen-rt = "0.22.0"
+recrypted-core = { path = "../recrypted-core" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[dev-dependencies]
+wasmtime = { version = "19" }
+wasmtime-wasi = "19.0"
+rand_core = "0.6.4"
+
+[package.metadata.component]
+package = "component:recrypted-component"
+
+[package.metadata.component.dependencies]

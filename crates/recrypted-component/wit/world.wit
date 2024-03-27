@@ -1,0 +1,29 @@
+package component:recrypted;
+
+interface provider {
+
+  /// Repsresent an Encrypted Message
+  record encrypted-message {
+    tag: list<u8>,
+    encrypted-key: list<u8>,
+    encrypted-data: list<u8>,
+    message-checksum: list<u8>,
+    overall-checksum: list<u8>,
+  }
+
+  resource recrypt {
+    /// Constructs a new recryptor.
+    constructor(seed: list<u8>); 
+
+    /// Self-encrypt the data with the tag.
+    self-encrypt: func(data: list<u8>, tag: list<u8>) -> encrypted-message;
+
+    /// Self-decrypt the data.
+    self-decrypt: func(data: encrypted-message) -> result<list<u8>, string>;
+  }
+}
+
+/// An example world for the component to target.
+world recryptor {
+  export provider;
+}

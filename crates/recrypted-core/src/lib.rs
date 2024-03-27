@@ -5,14 +5,13 @@ pub struct ReadmeDoctests;
 
 use curve25519_dalek::*;
 
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, Signer, VerifyingKey};
+pub use ed25519_dalek::{SigningKey, Verifier};
 
 use core::ops::{Add, Mul, Sub};
 use rand_core::OsRng;
-use secrecy::{
-    zeroize::{ZeroizeOnDrop, Zeroizing},
-    Zeroize,
-};
+pub use secrecy::zeroize::Zeroizing;
+use secrecy::{zeroize::ZeroizeOnDrop, Zeroize};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha512};
 use std::ops::Deref;
@@ -27,11 +26,11 @@ pub struct Pre {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EncryptedMessage {
-    tag: Vec<u8>,
-    encrypted_key: [u8; 32],
-    encrypted_data: Vec<u8>,
-    message_checksum: Vec<u8>,
-    overall_checksum: Vec<u8>,
+    pub tag: Vec<u8>,
+    pub encrypted_key: [u8; 32],
+    pub encrypted_data: Vec<u8>,
+    pub message_checksum: Vec<u8>,
+    pub overall_checksum: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
