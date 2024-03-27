@@ -5,28 +5,24 @@ pub struct ReadmeDoctests;
 
 use curve25519_dalek::*;
 
-use ed25519_dalek::{
-    Signature, Signer, SigningKey, Verifier, VerifyingKey, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH,
-    SECRET_KEY_LENGTH,
-};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey, SECRET_KEY_LENGTH};
 
 use core::ops::{Add, Mul, Sub};
+use rand_core::OsRng;
 use secrecy::{
     zeroize::{ZeroizeOnDrop, Zeroizing},
-    ExposeSecret, Secret, Zeroize,
+    Zeroize,
 };
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha512};
 use std::ops::Deref;
-// use hex::FromHex;
-
-use serde::{Deserialize, Serialize};
 
 // borrow ecies::symmetric::sym_encrypt for convenience
 use ecies::symmetric::{sym_decrypt, sym_encrypt};
 
 pub struct Pre {
-    x: Secret<Scalar>,
-    pub(crate) p: EdwardsPoint,
+    secret: SigningKey,
+    pub(crate) public: VerifyingKey,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,32 +60,39 @@ fn scalar_from_256_hash(data: &[u8]) -> Scalar {
 
 impl Default for Pre {
     fn default() -> Self {
-        let key_pair = generate_keypair();
-        Self::new(Zeroizing::new(key_pair.to_bytes()))
+        let signing_key: SigningKey = generate_keypair();
+        Self {
+            public: signing_key.verifying_key(),
+            secret: signing_key,
+        }
     }
 }
 
 impl Pre {
+    /// Create a new Proxy Re-Encryptor from a 32 byte secret key
     pub fn new(secret: impl Deref<Target = [u8; 32]> + Zeroize + ZeroizeOnDrop) -> Pre {
-        let clamped = clamp_secret_bytes(&secret);
-        let x = Secret::new(Scalar::from_bytes_mod_order(clamped));
-        let p = constants::ED25519_BASEPOINT_POINT.mul(x.expose_secret());
+        let signing = SigningKey::from_bytes(&secret);
+        let public = signing.verifying_key();
+        let secret = signing;
 
-        Pre { x, p }
+        Pre { secret, public }
     }
+
+    /// Get the public key bytes of this Proxy Re-Encryptor
     pub fn public_key(&self) -> [u8; 32] {
-        self.p.compress().to_bytes()
+        self.public.to_bytes()
     }
 
+    /// Encrypt a message with a tag
     pub fn self_encrypt(&self, msg: &[u8], tag: &[u8]) -> EncryptedMessage {
         // https://doc.dalek.rs/curve25519_dalek/scalar/index.html
-
-        let t: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
+        let mut csprng = OsRng;
+        let t: Scalar = Scalar::hash_from_bytes::<Sha512>(Scalar::random(&mut csprng).as_bytes());
 
         let mut t_base: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(t);
 
         // write input message
-        let secret_buffer = self.x.expose_secret().to_bytes();
+        let secret_buffer = self.secret.to_scalar().to_bytes();
         let concatenated = [tag, &secret_buffer].concat();
         let gen_array = Sha256::digest(concatenated); // no specified length
 
@@ -120,7 +123,7 @@ impl Pre {
         h_g.zeroize();
         t_base.zeroize();
 
-        let xb: [u8; 32] = self.x.expose_secret().to_bytes();
+        let xb: [u8; 32] = self.secret.to_scalar().to_bytes();
 
         let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, xb.as_slice()].concat());
 
@@ -144,8 +147,9 @@ impl Pre {
         }
     }
 
+    /// Decrypt a message that was encrypted with this Proxy Re-Encryptor
     pub fn self_decrypt(&self, msg: &EncryptedMessage) -> Vec<u8> {
-        let xb: Vec<u8> = self.x.expose_secret().to_bytes().to_vec();
+        let xb: Vec<u8> = self.secret.to_scalar().to_bytes().to_vec();
         let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[&msg.tag, xb.as_slice()].concat());
 
         let prep_checksum = [
@@ -198,14 +202,16 @@ impl Pre {
         data
     }
 
-    // generateReKey
+    /// Generate a Re-Key for a given public key and tag
     pub fn generate_re_key(&self, public_key: &[u8; 32], tag: &[u8]) -> ReKey {
         let p: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(*public_key)
             .decompress()
             .unwrap(); // self.curve.pointFromBuffer(publicKey);
-        let xb: [u8; 32] = self.x.expose_secret().to_bytes();
+        let xb: [u8; 32] = self.secret.to_scalar().to_bytes();
 
-        let r: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
+        let mut csprng = OsRng;
+
+        let r: Scalar = Scalar::hash_from_bytes::<Sha512>(Scalar::random(&mut csprng).as_bytes());
         let h: Scalar = scalar_from_256_hash(&[tag, xb.as_slice()].concat());
 
         let r3_scalar: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, xb.as_slice()].concat()); // sha512
@@ -220,6 +226,7 @@ impl Pre {
         }
     }
 
+    /// Re-Encrypt a message with a given Re-Key for a given public key
     pub fn re_encrypt(
         public_key: &[u8; 32],
         msg: EncryptedMessage,
@@ -243,7 +250,8 @@ impl Pre {
             .decompress()
             .unwrap();
 
-        let t: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
+        let mut csprng = OsRng;
+        let t: Scalar = Scalar::hash_from_bytes::<Sha512>(Scalar::random(&mut csprng).as_bytes());
 
         let tx_g: EdwardsPoint = p.mul(t); //  tP = txG
 
@@ -287,6 +295,7 @@ impl Pre {
         }
     }
 
+    /// Decrypt a message that was re-encrypted with this Proxy Re-Encryptor
     pub fn re_decrypt(&self, d: &ReEncryptedMessage) -> Vec<u8> {
         let d_1: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(d.d_1)
             .decompress()
@@ -298,7 +307,7 @@ impl Pre {
             .decompress()
             .unwrap(); // pointFromBuffer
 
-        let tx_g = d_5.mul(self.x.expose_secret()); //  x * D5 = x * tG
+        let tx_g = d_5.mul(self.secret.to_scalar()); //  x * D5 = x * tG
 
         // scalarFromHash is sha512
         let b_inv: Scalar = Scalar::hash_from_bytes::<Sha512>(
@@ -314,7 +323,7 @@ impl Pre {
         .invert();
 
         let t_1 = d_1.mul(b_inv);
-        let mut t_2 = d_4.mul(self.x.expose_secret().invert());
+        let mut t_2 = d_4.mul(self.secret.to_scalar().invert());
         let mut t_bytes = Zeroizing::new(t_1.sub(t_2).compress().to_bytes());
 
         let mut key = Zeroizing::new(Vec::new());
@@ -352,52 +361,9 @@ pub fn verify(public_key: VerifyingKey, message: &[u8], signature: Signature) ->
     public_key.verify(message, &signature).is_ok()
 }
 
-pub fn clamp_secret_bytes(secret: &[u8; 32]) -> [u8; 32] {
-    let mut hashed_priv_key: [u8; 32] = [0u8; 32];
-    hashed_priv_key.copy_from_slice(&sha2::Sha512::digest(secret)[0..32]);
-
-    // clamping, see: https://docs.rs/curve25519-dalek/4.1.2/src/curve25519_dalek/scalar.rs.html#1386-1391
-    hashed_priv_key[0] &= 248;
-    hashed_priv_key[31] &= 127;
-    hashed_priv_key[31] |= 64;
-
-    // let key = Scalar::from_bytes_mod_order(hashed_priv_key);
-    // let _pubkey = constants::ED25519_BASEPOINT_POINT
-    //     .mul(key)
-    //     .compress()
-    //     .to_bytes();
-    // assert_eq!(_pubkey, keypair.public.to_bytes());
-
-    hashed_priv_key
-}
-
 pub fn generate_keypair() -> SigningKey {
-    let mut secret_key_bytes = [0u8; SECRET_KEY_LENGTH];
-    getrandom::getrandom(&mut secret_key_bytes).unwrap();
-    keypair_from_seed(&secret_key_bytes)
-}
-
-pub fn keypair_from_seed(secret_scalar_bytes: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
-    let clamped = clamp_secret_bytes(secret_scalar_bytes);
-    let key = Scalar::from_bytes_mod_order(clamped);
-    let public_key: [u8; PUBLIC_KEY_LENGTH] = constants::ED25519_BASEPOINT_POINT
-        .mul(key)
-        .compress()
-        .to_bytes();
-
-    let concat = [secret_scalar_bytes.as_slice(), &public_key].concat();
-    let mut keypair: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
-
-    keypair.copy_from_slice(concat.as_slice());
-    let kp = SigningKey::from_bytes(secret_scalar_bytes);
-    assert_keypair(&kp);
-    kp
-}
-
-pub fn get_random_buf() -> [u8; 32] {
-    let mut buf = [0u8; 32];
-    getrandom::getrandom(&mut buf).unwrap();
-    buf
+    let mut csprng = OsRng;
+    SigningKey::generate(&mut csprng)
 }
 
 #[cfg(test)]

@@ -8,8 +8,8 @@ rust-version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ed25519-dalek = "2.1.1"
-curve25519-dalek = "4.1.2"
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+curve25519-dalek = { version = "4.1.2", features = ["rand_core", "digest"] }
 getrandom = { version = "0.2" } # // works in wasm/js/browser
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10.8"
@@ -18,6 +18,7 @@ hex-literal = "0.4.1"
 secrecy = "0.8.0"
 # ecies is used for their AES symmetric encryption module only
 ecies = { version = "0.2.6", default-features = false, features = ["pure", "std"] }
+rand_core = "0.6.4"
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
