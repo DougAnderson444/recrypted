@@ -5,7 +5,7 @@ pub struct ReadmeDoctests;
 
 use curve25519_dalek::*;
 
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey, SECRET_KEY_LENGTH};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 
 use core::ops::{Add, Mul, Sub};
 use rand_core::OsRng;
@@ -91,9 +91,7 @@ impl Pre {
 
         let mut t_base: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(t);
 
-        // write input message
-        let secret_buffer = self.secret.to_scalar().to_bytes();
-        let concatenated = [tag, &secret_buffer].concat();
+        let concatenated = [tag, self.secret.to_scalar().as_bytes()].concat();
         let gen_array = Sha256::digest(concatenated); // no specified length
 
         let mut sized = Zeroizing::new([0u8; 32]);
@@ -108,7 +106,6 @@ impl Pre {
 
         //  encrypt msg using key
         let mut key: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
-        // let key_hash = sha2::Sha512::digest(t_bytes);
         key.extend(&sha2::Sha256::digest(&t_bytes));
         let encrypted_data = sym_encrypt(&key, msg).unwrap();
 
@@ -150,8 +147,9 @@ impl Pre {
 
     /// Decrypt a message that was encrypted with this Proxy Re-Encryptor
     pub fn self_decrypt(&self, msg: &EncryptedMessage) -> Vec<u8> {
-        let xb: Vec<u8> = self.secret.to_scalar().to_bytes().to_vec();
-        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[&msg.tag, xb.as_slice()].concat());
+        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(
+            &[&msg.tag, self.secret.to_scalar().as_bytes().as_slice()].concat(),
+        );
 
         let prep_checksum = [
             &msg.encrypted_key,
@@ -170,7 +168,13 @@ impl Pre {
         );
 
         // hash1
-        let mut h: Scalar = scalar_from_256_hash(&[&msg.tag, xb.as_slice()].concat());
+        let mut h: Scalar = scalar_from_256_hash(
+            &[
+                msg.tag.as_slice(),
+                self.secret.to_scalar().as_bytes().as_slice(),
+            ]
+            .concat(),
+        );
         let mut h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
 
         let encrypted_key: EdwardsPoint =
@@ -208,14 +212,16 @@ impl Pre {
         let p: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(*public_key)
             .decompress()
             .unwrap(); // self.curve.pointFromBuffer(publicKey);
-        let xb: [u8; 32] = self.secret.to_scalar().to_bytes();
 
         let mut csprng = OsRng;
 
         let r: Scalar = Scalar::hash_from_bytes::<Sha512>(Scalar::random(&mut csprng).as_bytes());
-        let h: Scalar = scalar_from_256_hash(&[tag, xb.as_slice()].concat());
+        let h: Scalar =
+            scalar_from_256_hash(&[tag, self.secret.to_scalar().as_bytes().as_slice()].concat());
 
-        let r3_scalar: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, xb.as_slice()].concat()); // sha512
+        let r3_scalar: Scalar = Scalar::hash_from_bytes::<Sha512>(
+            &[tag, self.secret.to_scalar().as_bytes().as_slice()].concat(),
+        ); // sha512
 
         ReKey {
             r_1: constants::ED25519_BASEPOINT_POINT
