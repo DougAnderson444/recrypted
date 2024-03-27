@@ -11,8 +11,12 @@ use ed25519_dalek::{
 };
 
 use core::ops::{Add, Mul, Sub};
-use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, Zeroize};
+use secrecy::{
+    zeroize::{ZeroizeOnDrop, Zeroizing},
+    ExposeSecret, Secret, Zeroize,
+};
 use sha2::{Digest, Sha256, Sha512};
+use std::ops::Deref;
 // use hex::FromHex;
 
 use serde::{Deserialize, Serialize};
@@ -61,14 +65,14 @@ fn scalar_from_256_hash(data: &[u8]) -> Scalar {
 impl Default for Pre {
     fn default() -> Self {
         let key_pair = generate_keypair();
-        Self::new(&key_pair.to_bytes())
+        Self::new(Zeroizing::new(key_pair.to_bytes()))
     }
 }
 
 impl Pre {
-    pub fn new(secret: &[u8; 32]) -> Pre {
-        let hashed_key = get_hashed_priv_bytes(secret);
-        let x = Secret::new(Scalar::from_bytes_mod_order(hashed_key));
+    pub fn new(secret: impl Deref<Target = [u8; 32]> + Zeroize + ZeroizeOnDrop) -> Pre {
+        let clamped = clamp_secret_bytes(&secret);
+        let x = Secret::new(Scalar::from_bytes_mod_order(clamped));
         let p = constants::ED25519_BASEPOINT_POINT.mul(x.expose_secret());
 
         Pre { x, p }
@@ -339,22 +343,20 @@ pub fn verify(public_key: VerifyingKey, message: &[u8], signature: Signature) ->
     public_key.verify(message, &signature).is_ok()
 }
 
-pub fn get_hashed_priv_bytes(secret: &[u8; 32]) -> [u8; 32] {
-    // let secret = keypair.secret.to_bytes();
-
+pub fn clamp_secret_bytes(secret: &[u8; 32]) -> [u8; 32] {
     let mut hashed_priv_key: [u8; 32] = [0u8; 32];
     hashed_priv_key.copy_from_slice(&sha2::Sha512::digest(secret)[0..32]);
 
+    // clamping, see: https://docs.rs/curve25519-dalek/4.1.2/src/curve25519_dalek/scalar.rs.html#1386-1391
     hashed_priv_key[0] &= 248;
     hashed_priv_key[31] &= 127;
     hashed_priv_key[31] |= 64;
 
-    let key = Scalar::from_bytes_mod_order(hashed_priv_key);
-    let _pubkey = constants::ED25519_BASEPOINT_POINT
-        .mul(key)
-        .compress()
-        .to_bytes();
-
+    // let key = Scalar::from_bytes_mod_order(hashed_priv_key);
+    // let _pubkey = constants::ED25519_BASEPOINT_POINT
+    //     .mul(key)
+    //     .compress()
+    //     .to_bytes();
     // assert_eq!(_pubkey, keypair.public.to_bytes());
 
     hashed_priv_key
@@ -366,19 +368,19 @@ pub fn generate_keypair() -> SigningKey {
     keypair_from_seed(&secret_key_bytes)
 }
 
-pub fn keypair_from_seed(secret_key_bytes: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
-    let hashed_priv_key = get_hashed_priv_bytes(secret_key_bytes);
-    let key = Scalar::from_bytes_mod_order(hashed_priv_key);
+pub fn keypair_from_seed(secret_scalar_bytes: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
+    let clamped = clamp_secret_bytes(secret_scalar_bytes);
+    let key = Scalar::from_bytes_mod_order(clamped);
     let public_key: [u8; PUBLIC_KEY_LENGTH] = constants::ED25519_BASEPOINT_POINT
         .mul(key)
         .compress()
         .to_bytes();
 
-    let concat = [&secret_key_bytes[..], &public_key].concat();
+    let concat = [&secret_scalar_bytes[..], &public_key].concat();
     let mut keypair: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
 
     keypair.copy_from_slice(&concat[..]);
-    let kp = SigningKey::from_bytes(secret_key_bytes);
+    let kp = SigningKey::from_bytes(secret_scalar_bytes);
     assert_keypair(&kp);
     kp
 }
@@ -401,7 +403,7 @@ mod tests {
         // BOB
         let bob_keypair = generate_keypair();
         //  `bob` creates to DE-encrypt
-        let bob_pre = Pre::new(&bob_keypair.to_bytes());
+        let bob_pre = Pre::new(Zeroizing::new(bob_keypair.to_bytes()));
 
         // check to see if match
         assert_eq!(
