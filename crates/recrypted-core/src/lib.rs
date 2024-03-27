@@ -51,11 +51,8 @@ pub struct ReEncryptedMessage {
 }
 
 fn scalar_from_256_hash(data: &[u8]) -> Scalar {
-    let gen_array = Sha256::digest(data); // no specified length
-    let mut sized: [u8; 32] = Default::default(); // has to be [0..32]
-    sized.copy_from_slice(gen_array.as_slice());
-    // convert hashed to Scalar
-    Scalar::from_bytes_mod_order(sized) // from_bytes_mod_order can handle 256 bit reduction https://doc.dalek.rs/curve25519_dalek/scalar/index.html
+    // from_bytes_mod_order can handle 256 bit reduction https://doc.dalek.rs/curve25519_dalek/scalar/index.html
+    Scalar::from_bytes_mod_order(Sha256::digest(data).into())
 }
 
 impl Default for Pre {
@@ -237,7 +234,7 @@ impl Pre {
     pub fn re_encrypt(
         public_key: &[u8; 32],
         msg: EncryptedMessage,
-        re_key: ReKey,
+        re_key: &ReKey,
     ) -> ReEncryptedMessage {
         let prep_checksum = [
             &msg.encrypted_key,
@@ -388,7 +385,7 @@ mod tests {
         let bob_pre = Pre::new(Zeroizing::new(bob_keypair.to_bytes()));
 
         //  `alice` self-encrypts data with a tag
-        let data = hex_literal::hex!("deadbeefcafebabe");
+        let data = hex_literal::hex!("deadbeef");
         let tag = b"The TAG";
 
         let encrypted_message = alice_pre.self_encrypt(&data, tag);
@@ -402,12 +399,30 @@ mod tests {
         let re_encrypted_message = Pre::re_encrypt(
             &bob_keypair.verifying_key().to_bytes(),
             encrypted_message,
-            re_key,
-        ); // bob, res, reKey, curve
+            &re_key,
+        );
 
         //  `bob` decrypts it
         let data_2 = bob_pre.re_decrypt(&re_encrypted_message);
         assert_eq!(data, data_2.as_slice());
+
+        // if I change the data but keep the tag the same, we can re-use the re_key
+        let new_data = hex_literal::hex!("cafebabe");
+
+        let encrypted_message = alice_pre.self_encrypt(&new_data, tag);
+        let decrypted_message = alice_pre.self_decrypt(&encrypted_message);
+        assert_eq!(new_data, decrypted_message.as_slice());
+
+        //  `proxy` re-encrypts it for `bob`
+        let re_encrypted_message = Pre::re_encrypt(
+            &bob_keypair.verifying_key().to_bytes(),
+            encrypted_message,
+            &re_key,
+        );
+
+        //  `bob` decrypts it
+        let data_3 = bob_pre.re_decrypt(&re_encrypted_message);
+        assert_eq!(new_data, data_3.as_slice());
     }
 }
 
