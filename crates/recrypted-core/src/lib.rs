@@ -57,7 +57,7 @@ pub struct ReEncryptedMessage {
 fn scalar_from_256_hash(data: &[u8]) -> Scalar {
     let gen_array = Sha256::digest(data); // no specified length
     let mut sized: [u8; 32] = Default::default(); // has to be [0..32]
-    sized.copy_from_slice(&gen_array[..]);
+    sized.copy_from_slice(gen_array.as_slice());
     // convert hashed to Scalar
     Scalar::from_bytes_mod_order(sized) // from_bytes_mod_order can handle 256 bit reduction https://doc.dalek.rs/curve25519_dalek/scalar/index.html
 }
@@ -94,7 +94,7 @@ impl Pre {
         let gen_array = Sha256::digest(concatenated); // no specified length
 
         let mut sized: [u8; 32] = Default::default();
-        sized.copy_from_slice(&gen_array[..]); // has to be [0..32]
+        sized.copy_from_slice(gen_array.as_slice()); // has to be [0..32]
 
         // convert hashed to Scalar. Scalar is zeriozed by dalek
         let mut h: Scalar = Scalar::from_bytes_mod_order(sized);
@@ -122,18 +122,18 @@ impl Pre {
 
         let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
-        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, &xb[..]].concat());
+        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, xb.as_slice()].concat());
 
         let prep_checksum = [
-            &encrypted_key,      // slice of a [u8]
-            &encrypted_data[..], // slice of a vec, so need [..]
-            &message_checksum[..],
+            &encrypted_key, // slice of a [u8]
+            encrypted_data.as_slice(),
+            message_checksum.as_slice(),
             &alp.to_bytes(),
         ]
         .concat();
 
         let mut overall_checksum: Vec<u8> = Vec::default();
-        overall_checksum.extend(&sha2::Sha512::digest(&prep_checksum[..]));
+        overall_checksum.extend(&sha2::Sha512::digest(prep_checksum.as_slice()));
 
         EncryptedMessage {
             tag: tag.to_vec(),
@@ -146,18 +146,18 @@ impl Pre {
 
     pub fn self_decrypt(&self, msg: &EncryptedMessage) -> Vec<u8> {
         let xb: Vec<u8> = self.x.expose_secret().to_bytes().to_vec();
-        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[&msg.tag, &xb[..]].concat());
+        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[&msg.tag, xb.as_slice()].concat());
 
         let prep_checksum = [
             &msg.encrypted_key,
-            &msg.encrypted_data[..],
-            &msg.message_checksum[..],
+            msg.encrypted_data.as_slice(),
+            msg.message_checksum.as_slice(),
             &alp.to_bytes(),
         ]
         .concat();
 
         let mut overall_checksum: Vec<u8> = Vec::default();
-        overall_checksum.extend(&sha2::Sha512::digest(&prep_checksum[..]));
+        overall_checksum.extend(&sha2::Sha512::digest(prep_checksum.as_slice()));
 
         assert_eq!(
             overall_checksum, msg.overall_checksum,
@@ -165,7 +165,7 @@ impl Pre {
         );
 
         // hash1
-        let mut h: Scalar = scalar_from_256_hash(&[&msg.tag, &xb[..]].concat());
+        let mut h: Scalar = scalar_from_256_hash(&[&msg.tag, xb.as_slice()].concat());
         let mut h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
 
         let encrypted_key: EdwardsPoint =
@@ -181,7 +181,9 @@ impl Pre {
         // hash3
         // check2
         let mut message_checksum: Vec<u8> = Vec::default();
-        message_checksum.extend(sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()));
+        message_checksum.extend(sha2::Sha512::digest(
+            [data.as_slice(), t_bytes.as_slice()].concat(),
+        ));
 
         h.zeroize();
         h_g.zeroize();
@@ -204,9 +206,9 @@ impl Pre {
         let xb: [u8; 32] = self.x.expose_secret().to_bytes();
 
         let r: Scalar = Scalar::hash_from_bytes::<Sha512>(&get_random_buf());
-        let h: Scalar = scalar_from_256_hash(&[tag, &xb[..]].concat());
+        let h: Scalar = scalar_from_256_hash(&[tag, xb.as_slice()].concat());
 
-        let r3_scalar: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, &xb[..]].concat()); // sha512
+        let r3_scalar: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, xb.as_slice()].concat()); // sha512
 
         ReKey {
             r_1: constants::ED25519_BASEPOINT_POINT
@@ -225,13 +227,13 @@ impl Pre {
     ) -> ReEncryptedMessage {
         let prep_checksum = [
             &msg.encrypted_key,
-            &msg.encrypted_data[..],   // vec to [u8; 32]
-            &msg.message_checksum[..], // vec to [u8; 32]
+            msg.encrypted_data.as_slice(),
+            msg.message_checksum.as_slice(),
             &re_key.r_3,
         ]
         .concat();
 
-        let check_1 = sha2::Sha512::digest(&prep_checksum[..]).to_vec();
+        let check_1 = sha2::Sha512::digest(prep_checksum.as_slice()).to_vec();
 
         if !check_1.eq(&msg.overall_checksum) {
             panic!("Overall Checksum Failure!");
@@ -255,7 +257,14 @@ impl Pre {
 
         // hash 7 scalarFromHash is sha512
         let bet: Scalar = Scalar::hash_from_bytes::<Sha512>(
-            &[&tx_g.compress().to_bytes()[..], &d_2, &d_3, &d_4, &d_5].concat(),
+            &[
+                tx_g.compress().to_bytes().as_slice(),
+                &d_2,
+                &d_3,
+                &d_4,
+                &d_5,
+            ]
+            .concat(),
         );
 
         let r_1: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(re_key.r_1)
@@ -294,7 +303,7 @@ impl Pre {
         // scalarFromHash is sha512
         let b_inv: Scalar = Scalar::hash_from_bytes::<Sha512>(
             &[
-                &tx_g.compress().to_bytes()[..],
+                tx_g.compress().to_bytes().as_slice(),
                 &d.d_2,
                 &d.d_3,
                 &d.d_4,
@@ -315,7 +324,7 @@ impl Pre {
         drop(key);
 
         // hash 3
-        let check_2 = sha2::Sha512::digest([&data[..], &t_bytes[..]].concat()).to_vec();
+        let check_2 = sha2::Sha512::digest([data.as_slice(), t_bytes.as_slice()].concat()).to_vec();
 
         t_bytes.zeroize();
         t_2.zeroize();
@@ -376,10 +385,10 @@ pub fn keypair_from_seed(secret_scalar_bytes: &[u8; SECRET_KEY_LENGTH]) -> Signi
         .compress()
         .to_bytes();
 
-    let concat = [&secret_scalar_bytes[..], &public_key].concat();
+    let concat = [secret_scalar_bytes.as_slice(), &public_key].concat();
     let mut keypair: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
 
-    keypair.copy_from_slice(&concat[..]);
+    keypair.copy_from_slice(concat.as_slice());
     let kp = SigningKey::from_bytes(secret_scalar_bytes);
     assert_keypair(&kp);
     kp
