@@ -96,11 +96,11 @@ impl Pre {
         let concatenated = [tag, &secret_buffer].concat();
         let gen_array = Sha256::digest(concatenated); // no specified length
 
-        let mut sized: [u8; 32] = Default::default();
-        sized.copy_from_slice(gen_array.as_slice()); // has to be [0..32]
+        let mut sized = Zeroizing::new([0u8; 32]);
+        sized.copy_from_slice(gen_array.as_slice());
 
         // convert hashed to Scalar. Scalar is zeriozed by dalek
-        let mut h: Scalar = Scalar::from_bytes_mod_order(sized);
+        let mut h: Scalar = Scalar::from_bytes_mod_order(*sized);
         let mut h_g: EdwardsPoint = constants::ED25519_BASEPOINT_POINT.mul(h);
 
         let encrypted_key: [u8; 32] = t_base.add(&h_g).compress().to_bytes();
@@ -116,16 +116,8 @@ impl Pre {
 
         message_checksum.extend(sha2::Sha512::digest([msg, t_bytes.as_ref()].concat()));
 
-        // Clean up sensitive data in memory: Zeroize and drop.
-        drop(key);
-        drop(t_bytes);
-        h.zeroize();
-        h_g.zeroize();
-        t_base.zeroize();
-
-        let xb: [u8; 32] = self.secret.to_scalar().to_bytes();
-
-        let alp: Scalar = Scalar::hash_from_bytes::<Sha512>(&[tag, xb.as_slice()].concat());
+        let mut alp: Scalar =
+            Scalar::hash_from_bytes::<Sha512>(&[tag, self.secret.to_scalar().as_bytes()].concat());
 
         let prep_checksum = [
             &encrypted_key, // slice of a [u8]
@@ -134,6 +126,15 @@ impl Pre {
             &alp.to_bytes(),
         ]
         .concat();
+
+        // Clean up sensitive data in memory: Zeroize Scalars and drop ZeroizeOnDrop types
+        drop(key);
+        drop(sized);
+        drop(t_bytes);
+        h.zeroize();
+        h_g.zeroize();
+        alp.zeroize();
+        t_base.zeroize();
 
         let mut overall_checksum: Vec<u8> = Vec::default();
         overall_checksum.extend(&sha2::Sha512::digest(prep_checksum.as_slice()));
