@@ -28,7 +28,7 @@ assert_eq!(data, &decrypted_message[..]);
 let re_key = alice_pre.generate_re_key(&bob_keypair.verifying_key().to_bytes(), tag);
 
 //  `proxy` re-encrypts it for `bob`
-let re_encrypted_message = Pre::re_encrypt(
+let re_encrypted_message = re_encrypt(
     &bob_keypair.verifying_key().to_bytes(),
     encrypted_message,
     re_key,
