@@ -8,4 +8,6 @@ Written in 100% pure `Rust`.
 
 Workspace composed of:
 
-- [x] [recrypted-core](crates/recrypted-core/README.md)
+- [x] [recrypted-core](crates/recrypted-core/README.md) - The core library for the Transform Re-encryption scheme.
+- [x] [recrypted-component](crates/recrypted-component/README.md) - The bindings for [Wasm Interface Types Component](https://component-model.bytecodealliance.org/introduction.html) so the core library can be run anywhere [`wasmtime`](https://github.com/bytecodealliance/wasmtime) runs (Rust, JS, ...)
+
