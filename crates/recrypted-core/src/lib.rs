@@ -24,29 +24,157 @@ pub struct Pre {
     pub(crate) public: VerifyingKey,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EncryptedMessage {
-    pub tag: Vec<u8>,
-    pub encrypted_key: [u8; 32],
-    pub encrypted_data: Vec<u8>,
-    pub message_checksum: Vec<u8>,
-    pub overall_checksum: Vec<u8>,
+    tag: Vec<u8>,
+    encrypted_key: [u8; 32],
+    encrypted_data: Vec<u8>,
+    message_checksum: Vec<u8>,
+    overall_checksum: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl EncryptedMessage {
+    /// Sets the tag
+    pub fn with_tag(mut self, tag: &[u8]) -> Self {
+        self.tag = tag.to_vec();
+        self
+    }
+
+    /// Sets the encrypted key
+    pub fn with_encrypted_key(mut self, encrypted_key: &[u8; 32]) -> Self {
+        self.encrypted_key = *encrypted_key;
+        self
+    }
+
+    /// Sets the encrypted data
+    pub fn with_encrypted_data(mut self, encrypted_data: &[u8]) -> Self {
+        self.encrypted_data = encrypted_data.to_vec();
+        self
+    }
+
+    /// Sets the message checksum
+    pub fn with_message_checksum(mut self, message_checksum: &[u8]) -> Self {
+        self.message_checksum = message_checksum.to_vec();
+        self
+    }
+
+    /// Sets the overall checksum
+    pub fn with_overall_checksum(mut self, overall_checksum: &[u8]) -> Self {
+        self.overall_checksum = overall_checksum.to_vec();
+        self
+    }
+
+    pub fn tag(&self) -> &[u8] {
+        &self.tag
+    }
+
+    pub fn encrypted_key(&self) -> [u8; 32] {
+        self.encrypted_key
+    }
+
+    pub fn encrypted_data(&self) -> &[u8] {
+        &self.encrypted_data
+    }
+
+    pub fn message_checksum(&self) -> &[u8] {
+        &self.message_checksum
+    }
+
+    pub fn overall_checksum(&self) -> &[u8] {
+        &self.overall_checksum
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ReKey {
     r_1: [u8; 32], //  rG - hG
     r_2: [u8; 32], //  rP = rxG
     r_3: [u8; 32],
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl ReKey {
+    pub fn with_r_1(mut self, r_1: &[u8; 32]) -> Self {
+        self.r_1 = *r_1;
+        self
+    }
+
+    pub fn with_r_2(mut self, r_2: &[u8; 32]) -> Self {
+        self.r_2 = *r_2;
+        self
+    }
+
+    pub fn with_r_3(mut self, r_3: &[u8; 32]) -> Self {
+        self.r_3 = *r_3;
+        self
+    }
+
+    pub fn r_1(&self) -> [u8; 32] {
+        self.r_1
+    }
+
+    pub fn r_2(&self) -> [u8; 32] {
+        self.r_2
+    }
+
+    pub fn r_3(&self) -> [u8; 32] {
+        self.r_3
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ReEncryptedMessage {
     d_1: [u8; 32], //  Point
     d_2: Vec<u8>,
     d_3: Vec<u8>,
     d_4: [u8; 32], //  Point
     d_5: [u8; 32], //  Point
+}
+
+impl ReEncryptedMessage {
+    pub fn with_d_1(mut self, d_1: &[u8; 32]) -> Self {
+        self.d_1 = *d_1;
+        self
+    }
+
+    pub fn with_d_2(mut self, d_2: &[u8]) -> Self {
+        self.d_2 = d_2.to_vec();
+        self
+    }
+
+    pub fn with_d_3(mut self, d_3: &[u8]) -> Self {
+        self.d_3 = d_3.to_vec();
+        self
+    }
+
+    pub fn with_d_4(mut self, d_4: &[u8; 32]) -> Self {
+        self.d_4 = *d_4;
+        self
+    }
+
+    pub fn with_d_5(mut self, d_5: &[u8; 32]) -> Self {
+        self.d_5 = *d_5;
+        self
+    }
+
+    pub fn d_1(&self) -> [u8; 32] {
+        self.d_1
+    }
+
+    pub fn d_2(&self) -> &[u8] {
+        &self.d_2
+    }
+
+    pub fn d_3(&self) -> &[u8] {
+        &self.d_3
+    }
+
+    pub fn d_4(&self) -> [u8; 32] {
+        self.d_4
+    }
+
+    pub fn d_5(&self) -> [u8; 32] {
+        self.d_5
+    }
 }
 
 fn scalar_from_256_hash(data: &[u8]) -> Scalar {
@@ -229,75 +357,6 @@ impl Pre {
         }
     }
 
-    /// Re-Encrypt a message with a given Re-Key for a given public key
-    pub fn re_encrypt(
-        public_key: &[u8; 32],
-        msg: EncryptedMessage,
-        re_key: &ReKey,
-    ) -> ReEncryptedMessage {
-        let prep_checksum = [
-            &msg.encrypted_key,
-            msg.encrypted_data.as_slice(),
-            msg.message_checksum.as_slice(),
-            &re_key.r_3,
-        ]
-        .concat();
-
-        let check_1 = sha2::Sha512::digest(prep_checksum.as_slice()).to_vec();
-
-        if !check_1.eq(&msg.overall_checksum) {
-            panic!("Overall Checksum Failure!");
-        }
-
-        let p: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(*public_key)
-            .decompress()
-            .unwrap();
-
-        let mut csprng = OsRng;
-        let t: Scalar = Scalar::hash_from_bytes::<Sha512>(Scalar::random(&mut csprng).as_bytes());
-
-        let tx_g: EdwardsPoint = p.mul(t); //  tP = txG
-
-        let d_2 = msg.encrypted_data;
-        let d_3 = msg.message_checksum;
-        let d_4 = re_key.r_2;
-        let d_5 = constants::ED25519_BASEPOINT_POINT
-            .mul(t)
-            .compress()
-            .to_bytes(); // tG
-
-        // hash 7 scalarFromHash is sha512
-        let bet: Scalar = Scalar::hash_from_bytes::<Sha512>(
-            &[
-                tx_g.compress().to_bytes().as_slice(),
-                &d_2,
-                &d_3,
-                &d_4,
-                &d_5,
-            ]
-            .concat(),
-        );
-
-        let r_1: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(re_key.r_1)
-            .decompress()
-            .unwrap();
-
-        let encrypted_key = curve25519_dalek::edwards::CompressedEdwardsY(msg.encrypted_key)
-            .decompress()
-            .unwrap()
-            .add(r_1);
-
-        let d_1 = encrypted_key.mul(bet).compress().to_bytes();
-
-        ReEncryptedMessage {
-            d_1,
-            d_2,
-            d_3,
-            d_4,
-            d_5,
-        }
-    }
-
     /// Decrypt a message that was re-encrypted with this Proxy Re-Encryptor
     pub fn re_decrypt(&self, d: &ReEncryptedMessage) -> Vec<u8> {
         let d_1: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(d.d_1)
@@ -349,6 +408,74 @@ impl Pre {
     }
 }
 
+/// Allows any entity holding a [ReKey] to Re-Encrypt a message with a given [ReKey] for a given public key
+pub fn re_encrypt(
+    public_key: &[u8; 32],
+    msg: EncryptedMessage,
+    re_key: &ReKey,
+) -> ReEncryptedMessage {
+    let prep_checksum = [
+        &msg.encrypted_key,
+        msg.encrypted_data.as_slice(),
+        msg.message_checksum.as_slice(),
+        &re_key.r_3,
+    ]
+    .concat();
+
+    let check_1 = sha2::Sha512::digest(prep_checksum.as_slice()).to_vec();
+
+    if !check_1.eq(&msg.overall_checksum) {
+        panic!("Overall Checksum Failure!");
+    }
+
+    let p: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(*public_key)
+        .decompress()
+        .unwrap();
+
+    let mut csprng = OsRng;
+    let t: Scalar = Scalar::hash_from_bytes::<Sha512>(Scalar::random(&mut csprng).as_bytes());
+
+    let tx_g: EdwardsPoint = p.mul(t); //  tP = txG
+
+    let d_2 = msg.encrypted_data;
+    let d_3 = msg.message_checksum;
+    let d_4 = re_key.r_2;
+    let d_5 = constants::ED25519_BASEPOINT_POINT
+        .mul(t)
+        .compress()
+        .to_bytes(); // tG
+
+    // hash 7 scalarFromHash is sha512
+    let bet: Scalar = Scalar::hash_from_bytes::<Sha512>(
+        &[
+            tx_g.compress().to_bytes().as_slice(),
+            &d_2,
+            &d_3,
+            &d_4,
+            &d_5,
+        ]
+        .concat(),
+    );
+
+    let r_1: EdwardsPoint = curve25519_dalek::edwards::CompressedEdwardsY(re_key.r_1)
+        .decompress()
+        .unwrap();
+
+    let encrypted_key = curve25519_dalek::edwards::CompressedEdwardsY(msg.encrypted_key)
+        .decompress()
+        .unwrap()
+        .add(r_1);
+
+    let d_1 = encrypted_key.mul(bet).compress().to_bytes();
+
+    ReEncryptedMessage {
+        d_1,
+        d_2,
+        d_3,
+        d_4,
+        d_5,
+    }
+}
 pub fn assert_keypair(signing: &SigningKey) -> bool {
     let message: &[u8] = b"This is a test of the tsunami alert system.";
     let signature: Signature = signing.sign(message);
@@ -395,7 +522,7 @@ mod tests {
         let re_key = alice_pre.generate_re_key(&bob_keypair.verifying_key().to_bytes(), tag);
 
         //  `proxy` re-encrypts it for `bob`
-        let re_encrypted_message = Pre::re_encrypt(
+        let re_encrypted_message = re_encrypt(
             &bob_keypair.verifying_key().to_bytes(),
             encrypted_message,
             &re_key,
@@ -413,7 +540,7 @@ mod tests {
         assert_eq!(new_data, decrypted_message.as_slice());
 
         //  `proxy` re-encrypts it for `bob`
-        let re_encrypted_message = Pre::re_encrypt(
+        let re_encrypted_message = re_encrypt(
             &bob_keypair.verifying_key().to_bytes(),
             encrypted_message,
             &re_key,
