@@ -11,6 +11,22 @@ interface provider {
     overall-checksum: list<u8>,
   }
 
+  /// The re-encryption key
+  record re-key {
+    r-one: list<u8>,
+    r-two: list<u8>,
+    r-three: list<u8>,
+  }
+
+  /// The re-encrypted message
+  record re-encrypted-message {
+    d-one: list<u8>,
+    d-two: list<u8>,
+    d-three: list<u8>,
+    d-four: list<u8>,
+    d-five: list<u8>,
+  }
+
   resource recrypt {
     /// Constructs a new recryptor.
     constructor(seed: list<u8>); 
@@ -20,10 +36,24 @@ interface provider {
 
     /// Self-decrypt the data.
     self-decrypt: func(data: encrypted-message) -> result<list<u8>, string>;
+
+    /// generate a re-encryption key for the Proxy
+    generate-re-key: func(public-key: list<u8>, tag: list<u8>) -> result<re-key, string>;
+
+    /// Re-decrypt the given ReEncryptedMessage into a byte array.
+    re-decrypt: func(data: re-encrypted-message) -> result<list<u8>, string>;
   }
+}
+
+interface proxy {
+  use provider.{encrypted-message, re-key, re-encrypted-message};
+
+  /// Re-encrypt the data for the given public key with the re-encryption key. 
+  re-encrypt: func(public-key: list<u8>, data: encrypted-message, re-key: re-key) -> result<re-encrypted-message, string>;
 }
 
 /// An example world for the component to target.
 world recryptor {
   export provider;
+  export proxy;
 }

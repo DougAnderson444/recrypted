@@ -31,6 +31,42 @@ pub mod exports {
                             .finish()
                     }
                 }
+                /// The re-encryption key
+                #[derive(Clone)]
+                pub struct ReKey {
+                    pub r_one: _rt::Vec<u8>,
+                    pub r_two: _rt::Vec<u8>,
+                    pub r_three: _rt::Vec<u8>,
+                }
+                impl ::core::fmt::Debug for ReKey {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                        f.debug_struct("ReKey")
+                            .field("r-one", &self.r_one)
+                            .field("r-two", &self.r_two)
+                            .field("r-three", &self.r_three)
+                            .finish()
+                    }
+                }
+                /// The re-encrypted message
+                #[derive(Clone)]
+                pub struct ReEncryptedMessage {
+                    pub d_one: _rt::Vec<u8>,
+                    pub d_two: _rt::Vec<u8>,
+                    pub d_three: _rt::Vec<u8>,
+                    pub d_four: _rt::Vec<u8>,
+                    pub d_five: _rt::Vec<u8>,
+                }
+                impl ::core::fmt::Debug for ReEncryptedMessage {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                        f.debug_struct("ReEncryptedMessage")
+                            .field("d-one", &self.d_one)
+                            .field("d-two", &self.d_two)
+                            .field("d-three", &self.d_three)
+                            .field("d-four", &self.d_four)
+                            .field("d-five", &self.d_five)
+                            .finish()
+                    }
+                }
 
                 #[derive(Debug)]
                 #[repr(transparent)]
@@ -338,6 +374,167 @@ pub mod exports {
                         }
                     }
                 }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_method_recrypt_generate_re_key_cabi<T: GuestRecrypt>(
+                    arg0: i32,
+                    arg1: *mut u8,
+                    arg2: usize,
+                    arg3: *mut u8,
+                    arg4: usize,
+                ) -> *mut u8 {
+                    let len0 = arg2;
+                    let len1 = arg4;
+                    let result2 = T::generate_re_key(
+                        RecryptBorrow::lift(arg0 as u32 as usize).get(),
+                        _rt::Vec::from_raw_parts(arg1.cast(), len0, len0),
+                        _rt::Vec::from_raw_parts(arg3.cast(), len1, len1),
+                    );
+                    let ptr3 = _RET_AREA.0.as_mut_ptr().cast::<u8>();
+                    match result2 {
+                        Ok(e) => {
+                            *ptr3.add(0).cast::<u8>() = (0i32) as u8;
+                            let ReKey {
+                                r_one: r_one4,
+                                r_two: r_two4,
+                                r_three: r_three4,
+                            } = e;
+                            let vec5 = (r_one4).into_boxed_slice();
+                            let ptr5 = vec5.as_ptr().cast::<u8>();
+                            let len5 = vec5.len();
+                            ::core::mem::forget(vec5);
+                            *ptr3.add(8).cast::<usize>() = len5;
+                            *ptr3.add(4).cast::<*mut u8>() = ptr5.cast_mut();
+                            let vec6 = (r_two4).into_boxed_slice();
+                            let ptr6 = vec6.as_ptr().cast::<u8>();
+                            let len6 = vec6.len();
+                            ::core::mem::forget(vec6);
+                            *ptr3.add(16).cast::<usize>() = len6;
+                            *ptr3.add(12).cast::<*mut u8>() = ptr6.cast_mut();
+                            let vec7 = (r_three4).into_boxed_slice();
+                            let ptr7 = vec7.as_ptr().cast::<u8>();
+                            let len7 = vec7.len();
+                            ::core::mem::forget(vec7);
+                            *ptr3.add(24).cast::<usize>() = len7;
+                            *ptr3.add(20).cast::<*mut u8>() = ptr7.cast_mut();
+                        }
+                        Err(e) => {
+                            *ptr3.add(0).cast::<u8>() = (1i32) as u8;
+                            let vec8 = (e.into_bytes()).into_boxed_slice();
+                            let ptr8 = vec8.as_ptr().cast::<u8>();
+                            let len8 = vec8.len();
+                            ::core::mem::forget(vec8);
+                            *ptr3.add(8).cast::<usize>() = len8;
+                            *ptr3.add(4).cast::<*mut u8>() = ptr8.cast_mut();
+                        }
+                    };
+                    ptr3
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_method_recrypt_generate_re_key<T: GuestRecrypt>(
+                    arg0: *mut u8,
+                ) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0.add(4).cast::<*mut u8>();
+                            let l2 = *arg0.add(8).cast::<usize>();
+                            let base3 = l1;
+                            let len3 = l2;
+                            _rt::cabi_dealloc(base3, len3 * 1, 1);
+                            let l4 = *arg0.add(12).cast::<*mut u8>();
+                            let l5 = *arg0.add(16).cast::<usize>();
+                            let base6 = l4;
+                            let len6 = l5;
+                            _rt::cabi_dealloc(base6, len6 * 1, 1);
+                            let l7 = *arg0.add(20).cast::<*mut u8>();
+                            let l8 = *arg0.add(24).cast::<usize>();
+                            let base9 = l7;
+                            let len9 = l8;
+                            _rt::cabi_dealloc(base9, len9 * 1, 1);
+                        }
+                        _ => {
+                            let l10 = *arg0.add(4).cast::<*mut u8>();
+                            let l11 = *arg0.add(8).cast::<usize>();
+                            _rt::cabi_dealloc(l10, l11, 1);
+                        }
+                    }
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_method_recrypt_re_decrypt_cabi<T: GuestRecrypt>(
+                    arg0: i32,
+                    arg1: *mut u8,
+                    arg2: usize,
+                    arg3: *mut u8,
+                    arg4: usize,
+                    arg5: *mut u8,
+                    arg6: usize,
+                    arg7: *mut u8,
+                    arg8: usize,
+                    arg9: *mut u8,
+                    arg10: usize,
+                ) -> *mut u8 {
+                    let len0 = arg2;
+                    let len1 = arg4;
+                    let len2 = arg6;
+                    let len3 = arg8;
+                    let len4 = arg10;
+                    let result5 = T::re_decrypt(
+                        RecryptBorrow::lift(arg0 as u32 as usize).get(),
+                        ReEncryptedMessage {
+                            d_one: _rt::Vec::from_raw_parts(arg1.cast(), len0, len0),
+                            d_two: _rt::Vec::from_raw_parts(arg3.cast(), len1, len1),
+                            d_three: _rt::Vec::from_raw_parts(arg5.cast(), len2, len2),
+                            d_four: _rt::Vec::from_raw_parts(arg7.cast(), len3, len3),
+                            d_five: _rt::Vec::from_raw_parts(arg9.cast(), len4, len4),
+                        },
+                    );
+                    let ptr6 = _RET_AREA.0.as_mut_ptr().cast::<u8>();
+                    match result5 {
+                        Ok(e) => {
+                            *ptr6.add(0).cast::<u8>() = (0i32) as u8;
+                            let vec7 = (e).into_boxed_slice();
+                            let ptr7 = vec7.as_ptr().cast::<u8>();
+                            let len7 = vec7.len();
+                            ::core::mem::forget(vec7);
+                            *ptr6.add(8).cast::<usize>() = len7;
+                            *ptr6.add(4).cast::<*mut u8>() = ptr7.cast_mut();
+                        }
+                        Err(e) => {
+                            *ptr6.add(0).cast::<u8>() = (1i32) as u8;
+                            let vec8 = (e.into_bytes()).into_boxed_slice();
+                            let ptr8 = vec8.as_ptr().cast::<u8>();
+                            let len8 = vec8.len();
+                            ::core::mem::forget(vec8);
+                            *ptr6.add(8).cast::<usize>() = len8;
+                            *ptr6.add(4).cast::<*mut u8>() = ptr8.cast_mut();
+                        }
+                    };
+                    ptr6
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_method_recrypt_re_decrypt<T: GuestRecrypt>(
+                    arg0: *mut u8,
+                ) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0.add(4).cast::<*mut u8>();
+                            let l2 = *arg0.add(8).cast::<usize>();
+                            let base3 = l1;
+                            let len3 = l2;
+                            _rt::cabi_dealloc(base3, len3 * 1, 1);
+                        }
+                        _ => {
+                            let l4 = *arg0.add(4).cast::<*mut u8>();
+                            let l5 = *arg0.add(8).cast::<usize>();
+                            _rt::cabi_dealloc(l4, l5, 1);
+                        }
+                    }
+                }
                 pub trait Guest {
                     type Recrypt: GuestRecrypt;
                 }
@@ -393,39 +590,237 @@ pub mod exports {
                         &self,
                         data: EncryptedMessage,
                     ) -> Result<_rt::Vec<u8>, _rt::String>;
+                    /// generate a re-encryption key for the Proxy
+                    fn generate_re_key(
+                        &self,
+                        public_key: _rt::Vec<u8>,
+                        tag: _rt::Vec<u8>,
+                    ) -> Result<ReKey, _rt::String>;
+                    /// Re-decrypt the given ReEncryptedMessage into a byte array.
+                    fn re_decrypt(
+                        &self,
+                        data: ReEncryptedMessage,
+                    ) -> Result<_rt::Vec<u8>, _rt::String>;
                 }
                 #[doc(hidden)]
 
                 macro_rules! __export_component_recrypted_provider_cabi{
-    ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
+  ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
-      #[export_name = "component:recrypted/provider#[constructor]recrypt"]
-      unsafe extern "C" fn export_constructor_recrypt(arg0: *mut u8,arg1: usize,) -> i32 {
-        $($path_to_types)*::_export_constructor_recrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1)
-      }
-      #[export_name = "component:recrypted/provider#[method]recrypt.self-encrypt"]
-      unsafe extern "C" fn export_method_recrypt_self_encrypt(arg0: i32,arg1: *mut u8,arg2: usize,arg3: *mut u8,arg4: usize,) -> *mut u8 {
-        $($path_to_types)*::_export_method_recrypt_self_encrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1, arg2, arg3, arg4)
-      }
-      #[export_name = "cabi_post_component:recrypted/provider#[method]recrypt.self-encrypt"]
-      unsafe extern "C" fn _post_return_method_recrypt_self_encrypt(arg0: *mut u8,) {
-        $($path_to_types)*::__post_return_method_recrypt_self_encrypt::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0)
-      }
-      #[export_name = "component:recrypted/provider#[method]recrypt.self-decrypt"]
-      unsafe extern "C" fn export_method_recrypt_self_decrypt(arg0: i32,arg1: *mut u8,arg2: usize,arg3: *mut u8,arg4: usize,arg5: *mut u8,arg6: usize,arg7: *mut u8,arg8: usize,arg9: *mut u8,arg10: usize,) -> *mut u8 {
-        $($path_to_types)*::_export_method_recrypt_self_decrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
-      }
-      #[export_name = "cabi_post_component:recrypted/provider#[method]recrypt.self-decrypt"]
-      unsafe extern "C" fn _post_return_method_recrypt_self_decrypt(arg0: *mut u8,) {
-        $($path_to_types)*::__post_return_method_recrypt_self_decrypt::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0)
-      }
-    };);
-  }
+    #[export_name = "component:recrypted/provider#[constructor]recrypt"]
+    unsafe extern "C" fn export_constructor_recrypt(arg0: *mut u8,arg1: usize,) -> i32 {
+      $($path_to_types)*::_export_constructor_recrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1)
+    }
+    #[export_name = "component:recrypted/provider#[method]recrypt.self-encrypt"]
+    unsafe extern "C" fn export_method_recrypt_self_encrypt(arg0: i32,arg1: *mut u8,arg2: usize,arg3: *mut u8,arg4: usize,) -> *mut u8 {
+      $($path_to_types)*::_export_method_recrypt_self_encrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1, arg2, arg3, arg4)
+    }
+    #[export_name = "cabi_post_component:recrypted/provider#[method]recrypt.self-encrypt"]
+    unsafe extern "C" fn _post_return_method_recrypt_self_encrypt(arg0: *mut u8,) {
+      $($path_to_types)*::__post_return_method_recrypt_self_encrypt::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0)
+    }
+    #[export_name = "component:recrypted/provider#[method]recrypt.self-decrypt"]
+    unsafe extern "C" fn export_method_recrypt_self_decrypt(arg0: i32,arg1: *mut u8,arg2: usize,arg3: *mut u8,arg4: usize,arg5: *mut u8,arg6: usize,arg7: *mut u8,arg8: usize,arg9: *mut u8,arg10: usize,) -> *mut u8 {
+      $($path_to_types)*::_export_method_recrypt_self_decrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+    }
+    #[export_name = "cabi_post_component:recrypted/provider#[method]recrypt.self-decrypt"]
+    unsafe extern "C" fn _post_return_method_recrypt_self_decrypt(arg0: *mut u8,) {
+      $($path_to_types)*::__post_return_method_recrypt_self_decrypt::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0)
+    }
+    #[export_name = "component:recrypted/provider#[method]recrypt.generate-re-key"]
+    unsafe extern "C" fn export_method_recrypt_generate_re_key(arg0: i32,arg1: *mut u8,arg2: usize,arg3: *mut u8,arg4: usize,) -> *mut u8 {
+      $($path_to_types)*::_export_method_recrypt_generate_re_key_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1, arg2, arg3, arg4)
+    }
+    #[export_name = "cabi_post_component:recrypted/provider#[method]recrypt.generate-re-key"]
+    unsafe extern "C" fn _post_return_method_recrypt_generate_re_key(arg0: *mut u8,) {
+      $($path_to_types)*::__post_return_method_recrypt_generate_re_key::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0)
+    }
+    #[export_name = "component:recrypted/provider#[method]recrypt.re-decrypt"]
+    unsafe extern "C" fn export_method_recrypt_re_decrypt(arg0: i32,arg1: *mut u8,arg2: usize,arg3: *mut u8,arg4: usize,arg5: *mut u8,arg6: usize,arg7: *mut u8,arg8: usize,arg9: *mut u8,arg10: usize,) -> *mut u8 {
+      $($path_to_types)*::_export_method_recrypt_re_decrypt_cabi::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+    }
+    #[export_name = "cabi_post_component:recrypted/provider#[method]recrypt.re-decrypt"]
+    unsafe extern "C" fn _post_return_method_recrypt_re_decrypt(arg0: *mut u8,) {
+      $($path_to_types)*::__post_return_method_recrypt_re_decrypt::<<$ty as $($path_to_types)*::Guest>::Recrypt>(arg0)
+    }
+  };);
+}
                 #[doc(hidden)]
                 pub(crate) use __export_component_recrypted_provider_cabi;
                 #[repr(align(4))]
                 struct _RetArea([::core::mem::MaybeUninit<u8>; 40]);
                 static mut _RET_AREA: _RetArea = _RetArea([::core::mem::MaybeUninit::uninit(); 40]);
+            }
+
+            #[allow(clippy::all)]
+            pub mod proxy {
+                #[used]
+                #[doc(hidden)]
+                #[cfg(target_arch = "wasm32")]
+                static __FORCE_SECTION_REF: fn() =
+                    super::super::super::super::__link_custom_section_describing_imports;
+                use super::super::super::super::_rt;
+                pub type EncryptedMessage = super::super::super::super::exports::component::recrypted::provider::EncryptedMessage;
+                pub type ReKey =
+                    super::super::super::super::exports::component::recrypted::provider::ReKey;
+                pub type ReEncryptedMessage = super::super::super::super::exports::component::recrypted::provider::ReEncryptedMessage;
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_re_encrypt_cabi<T: Guest>(arg0: *mut u8) -> *mut u8 {
+                    let l0 = *arg0.add(0).cast::<*mut u8>();
+                    let l1 = *arg0.add(4).cast::<usize>();
+                    let len2 = l1;
+                    let l3 = *arg0.add(8).cast::<*mut u8>();
+                    let l4 = *arg0.add(12).cast::<usize>();
+                    let len5 = l4;
+                    let l6 = *arg0.add(16).cast::<*mut u8>();
+                    let l7 = *arg0.add(20).cast::<usize>();
+                    let len8 = l7;
+                    let l9 = *arg0.add(24).cast::<*mut u8>();
+                    let l10 = *arg0.add(28).cast::<usize>();
+                    let len11 = l10;
+                    let l12 = *arg0.add(32).cast::<*mut u8>();
+                    let l13 = *arg0.add(36).cast::<usize>();
+                    let len14 = l13;
+                    let l15 = *arg0.add(40).cast::<*mut u8>();
+                    let l16 = *arg0.add(44).cast::<usize>();
+                    let len17 = l16;
+                    let l18 = *arg0.add(48).cast::<*mut u8>();
+                    let l19 = *arg0.add(52).cast::<usize>();
+                    let len20 = l19;
+                    let l21 = *arg0.add(56).cast::<*mut u8>();
+                    let l22 = *arg0.add(60).cast::<usize>();
+                    let len23 = l22;
+                    let l24 = *arg0.add(64).cast::<*mut u8>();
+                    let l25 = *arg0.add(68).cast::<usize>();
+                    let len26 = l25;
+                    let result27 = T::re_encrypt(_rt::Vec::from_raw_parts(l0.cast(), len2, len2), super::super::super::super::exports::component::recrypted::provider::EncryptedMessage{
+    tag: _rt::Vec::from_raw_parts(l3.cast(), len5, len5),
+    encrypted_key: _rt::Vec::from_raw_parts(l6.cast(), len8, len8),
+    encrypted_data: _rt::Vec::from_raw_parts(l9.cast(), len11, len11),
+    message_checksum: _rt::Vec::from_raw_parts(l12.cast(), len14, len14),
+    overall_checksum: _rt::Vec::from_raw_parts(l15.cast(), len17, len17),
+  }, super::super::super::super::exports::component::recrypted::provider::ReKey{
+    r_one: _rt::Vec::from_raw_parts(l18.cast(), len20, len20),
+    r_two: _rt::Vec::from_raw_parts(l21.cast(), len23, len23),
+    r_three: _rt::Vec::from_raw_parts(l24.cast(), len26, len26),
+  });
+                    _rt::cabi_dealloc(arg0, 72, 4);
+                    let ptr28 = _RET_AREA.0.as_mut_ptr().cast::<u8>();
+                    match result27 {
+                        Ok(e) => {
+                            *ptr28.add(0).cast::<u8>() = (0i32) as u8;
+                            let super::super::super::super::exports::component::recrypted::provider::ReEncryptedMessage{ d_one:d_one29, d_two:d_two29, d_three:d_three29, d_four:d_four29, d_five:d_five29, } = e;
+                            let vec30 = (d_one29).into_boxed_slice();
+                            let ptr30 = vec30.as_ptr().cast::<u8>();
+                            let len30 = vec30.len();
+                            ::core::mem::forget(vec30);
+                            *ptr28.add(8).cast::<usize>() = len30;
+                            *ptr28.add(4).cast::<*mut u8>() = ptr30.cast_mut();
+                            let vec31 = (d_two29).into_boxed_slice();
+                            let ptr31 = vec31.as_ptr().cast::<u8>();
+                            let len31 = vec31.len();
+                            ::core::mem::forget(vec31);
+                            *ptr28.add(16).cast::<usize>() = len31;
+                            *ptr28.add(12).cast::<*mut u8>() = ptr31.cast_mut();
+                            let vec32 = (d_three29).into_boxed_slice();
+                            let ptr32 = vec32.as_ptr().cast::<u8>();
+                            let len32 = vec32.len();
+                            ::core::mem::forget(vec32);
+                            *ptr28.add(24).cast::<usize>() = len32;
+                            *ptr28.add(20).cast::<*mut u8>() = ptr32.cast_mut();
+                            let vec33 = (d_four29).into_boxed_slice();
+                            let ptr33 = vec33.as_ptr().cast::<u8>();
+                            let len33 = vec33.len();
+                            ::core::mem::forget(vec33);
+                            *ptr28.add(32).cast::<usize>() = len33;
+                            *ptr28.add(28).cast::<*mut u8>() = ptr33.cast_mut();
+                            let vec34 = (d_five29).into_boxed_slice();
+                            let ptr34 = vec34.as_ptr().cast::<u8>();
+                            let len34 = vec34.len();
+                            ::core::mem::forget(vec34);
+                            *ptr28.add(40).cast::<usize>() = len34;
+                            *ptr28.add(36).cast::<*mut u8>() = ptr34.cast_mut();
+                        }
+                        Err(e) => {
+                            *ptr28.add(0).cast::<u8>() = (1i32) as u8;
+                            let vec35 = (e.into_bytes()).into_boxed_slice();
+                            let ptr35 = vec35.as_ptr().cast::<u8>();
+                            let len35 = vec35.len();
+                            ::core::mem::forget(vec35);
+                            *ptr28.add(8).cast::<usize>() = len35;
+                            *ptr28.add(4).cast::<*mut u8>() = ptr35.cast_mut();
+                        }
+                    };
+                    ptr28
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_re_encrypt<T: Guest>(arg0: *mut u8) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0.add(4).cast::<*mut u8>();
+                            let l2 = *arg0.add(8).cast::<usize>();
+                            let base3 = l1;
+                            let len3 = l2;
+                            _rt::cabi_dealloc(base3, len3 * 1, 1);
+                            let l4 = *arg0.add(12).cast::<*mut u8>();
+                            let l5 = *arg0.add(16).cast::<usize>();
+                            let base6 = l4;
+                            let len6 = l5;
+                            _rt::cabi_dealloc(base6, len6 * 1, 1);
+                            let l7 = *arg0.add(20).cast::<*mut u8>();
+                            let l8 = *arg0.add(24).cast::<usize>();
+                            let base9 = l7;
+                            let len9 = l8;
+                            _rt::cabi_dealloc(base9, len9 * 1, 1);
+                            let l10 = *arg0.add(28).cast::<*mut u8>();
+                            let l11 = *arg0.add(32).cast::<usize>();
+                            let base12 = l10;
+                            let len12 = l11;
+                            _rt::cabi_dealloc(base12, len12 * 1, 1);
+                            let l13 = *arg0.add(36).cast::<*mut u8>();
+                            let l14 = *arg0.add(40).cast::<usize>();
+                            let base15 = l13;
+                            let len15 = l14;
+                            _rt::cabi_dealloc(base15, len15 * 1, 1);
+                        }
+                        _ => {
+                            let l16 = *arg0.add(4).cast::<*mut u8>();
+                            let l17 = *arg0.add(8).cast::<usize>();
+                            _rt::cabi_dealloc(l16, l17, 1);
+                        }
+                    }
+                }
+                pub trait Guest {
+                    /// Re-encrypt the data for the given public key with the re-encryption key.
+                    fn re_encrypt(
+                        public_key: _rt::Vec<u8>,
+                        data: EncryptedMessage,
+                        re_key: ReKey,
+                    ) -> Result<ReEncryptedMessage, _rt::String>;
+                }
+                #[doc(hidden)]
+
+                macro_rules! __export_component_recrypted_proxy_cabi{
+  ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
+
+    #[export_name = "component:recrypted/proxy#re-encrypt"]
+    unsafe extern "C" fn export_re_encrypt(arg0: *mut u8,) -> *mut u8 {
+      $($path_to_types)*::_export_re_encrypt_cabi::<$ty>(arg0)
+    }
+    #[export_name = "cabi_post_component:recrypted/proxy#re-encrypt"]
+    unsafe extern "C" fn _post_return_re_encrypt(arg0: *mut u8,) {
+      $($path_to_types)*::__post_return_re_encrypt::<$ty>(arg0)
+    }
+  };);
+}
+                #[doc(hidden)]
+                pub(crate) use __export_component_recrypted_proxy_cabi;
+                #[repr(align(4))]
+                struct _RetArea([::core::mem::MaybeUninit<u8>; 44]);
+                static mut _RET_AREA: _RetArea = _RetArea([::core::mem::MaybeUninit::uninit(); 44]);
             }
         }
     }
@@ -562,6 +957,7 @@ macro_rules! __export_recryptor_impl {
   ($ty:ident) => (self::export!($ty with_types_in self););
   ($ty:ident with_types_in $($path_to_types_root:tt)*) => (
   $($path_to_types_root)*::exports::component::recrypted::provider::__export_component_recrypted_provider_cabi!($ty with_types_in $($path_to_types_root)*::exports::component::recrypted::provider);
+  $($path_to_types_root)*::exports::component::recrypted::proxy::__export_component_recrypted_proxy_cabi!($ty with_types_in $($path_to_types_root)*::exports::component::recrypted::proxy);
   )
 }
 #[doc(inline)]
@@ -570,17 +966,27 @@ pub(crate) use __export_recryptor_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.21.0:recryptor:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 470] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd6\x02\x01A\x02\x01\
-A\x02\x01B\x0d\x01p}\x01r\x05\x03tag\0\x0dencrypted-key\0\x0eencrypted-data\0\x10\
-message-checksum\0\x10overall-checksum\0\x04\0\x11encrypted-message\x03\0\x01\x04\
-\0\x07recrypt\x03\x01\x01i\x03\x01@\x01\x04seed\0\0\x04\x04\0\x14[constructor]re\
-crypt\x01\x05\x01h\x03\x01@\x03\x04self\x06\x04data\0\x03tag\0\0\x02\x04\0\x1c[m\
-ethod]recrypt.self-encrypt\x01\x07\x01j\x01\0\x01s\x01@\x02\x04self\x06\x04data\x02\
-\0\x08\x04\0\x1c[method]recrypt.self-decrypt\x01\x09\x04\x01\x1ccomponent:recryp\
-ted/provider\x05\0\x04\x01\x1dcomponent:recrypted/recryptor\x04\0\x0b\x0f\x01\0\x09\
-recryptor\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.\
-201.0\x10wit-bindgen-rust\x060.21.0";
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 916] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x94\x06\x01A\x02\x01\
+A\x07\x01B\x16\x01p}\x01r\x05\x03tag\0\x0dencrypted-key\0\x0eencrypted-data\0\x10\
+message-checksum\0\x10overall-checksum\0\x04\0\x11encrypted-message\x03\0\x01\x01\
+r\x03\x05r-one\0\x05r-two\0\x07r-three\0\x04\0\x06re-key\x03\0\x03\x01r\x05\x05d\
+-one\0\x05d-two\0\x07d-three\0\x06d-four\0\x06d-five\0\x04\0\x14re-encrypted-mes\
+sage\x03\0\x05\x04\0\x07recrypt\x03\x01\x01i\x07\x01@\x01\x04seed\0\0\x08\x04\0\x14\
+[constructor]recrypt\x01\x09\x01h\x07\x01@\x03\x04self\x0a\x04data\0\x03tag\0\0\x02\
+\x04\0\x1c[method]recrypt.self-encrypt\x01\x0b\x01j\x01\0\x01s\x01@\x02\x04self\x0a\
+\x04data\x02\0\x0c\x04\0\x1c[method]recrypt.self-decrypt\x01\x0d\x01j\x01\x04\x01\
+s\x01@\x03\x04self\x0a\x0apublic-key\0\x03tag\0\0\x0e\x04\0\x1f[method]recrypt.g\
+enerate-re-key\x01\x0f\x01@\x02\x04self\x0a\x04data\x06\0\x0c\x04\0\x1a[method]r\
+ecrypt.re-decrypt\x01\x10\x04\x01\x1ccomponent:recrypted/provider\x05\0\x02\x03\0\
+\0\x11encrypted-message\x02\x03\0\0\x06re-key\x02\x03\0\0\x14re-encrypted-messag\
+e\x01B\x0a\x02\x03\x02\x01\x01\x04\0\x11encrypted-message\x03\0\0\x02\x03\x02\x01\
+\x02\x04\0\x06re-key\x03\0\x02\x02\x03\x02\x01\x03\x04\0\x14re-encrypted-message\
+\x03\0\x04\x01p}\x01j\x01\x05\x01s\x01@\x03\x0apublic-key\x06\x04data\x01\x06re-\
+key\x03\0\x07\x04\0\x0are-encrypt\x01\x08\x04\x01\x19component:recrypted/proxy\x05\
+\x04\x04\x01\x1dcomponent:recrypted/recryptor\x04\0\x0b\x0f\x01\0\x09recryptor\x03\
+\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-\
+bindgen-rust\x060.21.0";
 
 #[inline(never)]
 #[doc(hidden)]

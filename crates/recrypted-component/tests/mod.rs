@@ -48,7 +48,7 @@ mod wit_tests {
     use super::*;
 
     #[test]
-    fn test_random() {
+    fn test_roundtrip() {
         let pkg_name = std::env::var("CARGO_PKG_NAME").unwrap().replace('-', "_");
         let workspace = workspace_dir();
         let wasm_path = format!("target/wasm32-wasi/debug/{}.wasm", pkg_name);
@@ -102,5 +102,48 @@ mod wit_tests {
             .unwrap();
 
         assert_eq!(data, decrypted_msg);
+
+        // Now let proxy re-encrypt the message for Bob
+        let bob = SigningKey::generate(&mut OsRng);
+
+        // generate a ReKey for this tag
+        let re_key = bindings
+            .component_recrypted_provider()
+            .recrypt()
+            .call_generate_re_key(
+                &mut store,
+                provider,
+                bob.verifying_key().as_bytes().as_slice(),
+                &tag,
+            )
+            .unwrap()
+            .unwrap();
+
+        let re_encr_msg = bindings
+            .component_recrypted_proxy()
+            .call_re_encrypt(
+                &mut store,
+                bob.verifying_key().as_bytes(),
+                &encr_msg,
+                &re_key,
+            )
+            .unwrap()
+            .unwrap();
+
+        // Now let Bob decrypt the message
+        let bob_provider = bindings
+            .component_recrypted_provider()
+            .recrypt()
+            .call_constructor(&mut store, bob.as_bytes())
+            .unwrap();
+
+        let bob_decrypted_msg = bindings
+            .component_recrypted_provider()
+            .recrypt()
+            .call_re_decrypt(&mut store, bob_provider, &re_encr_msg)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(data, bob_decrypted_msg);
     }
 }
