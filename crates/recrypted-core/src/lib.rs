@@ -546,7 +546,7 @@ mod tests {
             &re_key,
         );
 
-        //  `bob` decrypts it
+        //  `bob` decrypts it since it has the same tag
         let data_3 = bob_pre.re_decrypt(&re_encrypted_message);
         assert_eq!(new_data, data_3.as_slice());
     }
