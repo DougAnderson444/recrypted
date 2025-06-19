@@ -521,7 +521,7 @@ mod tests {
         //  `alice` re-keys the file to allow for `bob` to access the data
         let re_key = alice_pre.generate_re_key(&bob_keypair.verifying_key().to_bytes(), tag);
 
-        //  `proxy` re-encrypts it for `bob`
+        //  whoever hold the re_key for Bob's publicKey (such as a `proxy` or even Bob himself) can re-encrypt it
         let re_encrypted_message = re_encrypt(
             &bob_keypair.verifying_key().to_bytes(),
             encrypted_message,
