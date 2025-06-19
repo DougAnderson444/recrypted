@@ -31,7 +31,7 @@ let re_key = alice_pre.generate_re_key(&bob_keypair.verifying_key().to_bytes(), 
 let re_encrypted_message = re_encrypt(
     &bob_keypair.verifying_key().to_bytes(),
     encrypted_message,
-    re_key,
+    &re_key,
 ); // bob, res, reKey, curve
 
 //  `bob` decrypts it

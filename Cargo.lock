@@ -1510,7 +1510,6 @@ dependencies = [
 name = "recrypted-component"
 version = "0.1.0"
 dependencies = [
- "bitflags 2.5.0",
  "rand_core",
  "recrypted-core",
  "wasmtime",
@@ -2750,9 +2749,12 @@ dependencies = [
 
 [[package]]
 name = "wit-bindgen-rt"
-version = "0.22.0"
+version = "0.42.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb8738270f32a2d6739973cbbb7c1b6dd8959ce515578a6e19165853272ee64"
+checksum = "051105bab12bc78e161f8dfb3596e772dd6a01ebf9c4840988e00347e744966a"
+dependencies = [
+ "bitflags 2.5.0",
+]
 
 [[package]]
 name = "wit-parser"

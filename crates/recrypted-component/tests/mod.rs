@@ -51,7 +51,7 @@ mod wit_tests {
     fn test_roundtrip() {
         let pkg_name = std::env::var("CARGO_PKG_NAME").unwrap().replace('-', "_");
         let workspace = workspace_dir();
-        let wasm_path = format!("target/wasm32-wasi/debug/{}.wasm", pkg_name);
+        let wasm_path = format!("target/wasm32-wasip1/debug/{}.wasm", pkg_name);
         let wasm_path = workspace.join(wasm_path);
 
         let mut config = Config::new();

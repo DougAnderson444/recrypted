@@ -5,8 +5,7 @@ edition = "2021"
 rust-version.workspace = true
 
 [dependencies]
-bitflags = "2.5.0"
-wit-bindgen-rt = "0.22.0"
+wit-bindgen-rt = { version = "0.42.1", features = ["bitflags"] }
 recrypted-core = { path = "../recrypted-core" }
 
 [lib]
