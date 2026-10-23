@@ -92,6 +92,7 @@ mod wit_tests {
             .component_recrypted_provider()
             .recrypt()
             .call_self_encrypt(&mut store, provider, &data, &tag)
+            .unwrap()
             .unwrap();
 
         let decrypted_msg = bindings
@@ -145,5 +146,37 @@ mod wit_tests {
             .unwrap();
 
         assert_eq!(data, bob_decrypted_msg);
+
+        // A re-key issued for another tag is refused with an error, not a wasm trap.
+        let other_tag_re_key = bindings
+            .component_recrypted_provider()
+            .recrypt()
+            .call_generate_re_key(
+                &mut store,
+                provider,
+                bob.verifying_key().as_bytes().as_slice(),
+                b"other tag",
+            )
+            .unwrap()
+            .unwrap();
+
+        let refused = bindings
+            .component_recrypted_proxy()
+            .call_re_encrypt(
+                &mut store,
+                bob.verifying_key().as_bytes(),
+                &encr_msg,
+                &other_tag_re_key,
+            )
+            .unwrap();
+        assert!(refused.is_err());
+
+        // An invalid public key is refused too, and the instance stays usable.
+        let refused = bindings
+            .component_recrypted_provider()
+            .recrypt()
+            .call_generate_re_key(&mut store, provider, &[1u8; 5], &tag)
+            .unwrap();
+        assert!(refused.is_err());
     }
 }

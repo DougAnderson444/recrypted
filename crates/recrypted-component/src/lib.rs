@@ -20,6 +20,13 @@ impl Guest for Component {
     type Recrypt = Self;
 }
 
+/// Copy `bytes` into a 32-byte array, naming `what` in the error.
+fn bytes32(bytes: &[u8], what: &str) -> Result<[u8; 32], String> {
+    bytes
+        .try_into()
+        .map_err(|_| format!("{what} is not 32 bytes"))
+}
+
 impl ProxyGuest for Component {
     /// Re-encrypt the data for the given public key with the given re-encription key.
     fn re_encrypt(
@@ -27,15 +34,8 @@ impl ProxyGuest for Component {
         data: EncryptedMessage,
         re_key: ReKey,
     ) -> Result<ReEncryptedMessage, String> {
-        Ok(recrypted_core::re_encrypt(
-            &public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| "Public key is not 32 bytes".to_string())?,
-            data.try_into().map_err(|_| "Invalid Encrypted Message")?,
-            &re_key.try_into().map_err(|_| "Invalid ReKey")?,
-        )
-        .into())
+        let public_key = bytes32(&public_key, "Public key")?;
+        Ok(recrypted_core::re_encrypt(&public_key, data.try_into()?, &re_key.try_into()?)?.into())
     }
 }
 
@@ -51,39 +51,28 @@ impl GuestRecrypt for Component {
     }
 
     /// Self-encrypt the data.
-    fn self_encrypt(&self, data: Vec<u8>, tag: Vec<u8>) -> EncryptedMessage {
-        self.recryptor.borrow().self_encrypt(&data, &tag).into()
+    fn self_encrypt(&self, data: Vec<u8>, tag: Vec<u8>) -> Result<EncryptedMessage, String> {
+        Ok(self.recryptor.borrow().self_encrypt(&data, &tag)?.into())
     }
 
     /// Self-decrypt the data.
     fn self_decrypt(&self, data: EncryptedMessage) -> Result<Vec<u8>, String> {
-        Ok(self
-            .recryptor
-            .borrow()
-            .self_decrypt(&(data.try_into().map_err(|_| "Invalid Encrypted Message")?)))
+        Ok(self.recryptor.borrow().self_decrypt(&data.try_into()?)?)
     }
 
     /// Generate a re-encription key.
     fn generate_re_key(&self, recipient: Vec<u8>, tag: Vec<u8>) -> Result<ReKey, String> {
+        let recipient = bytes32(&recipient, "Public key")?;
         Ok(self
             .recryptor
             .borrow()
-            .generate_re_key(
-                recipient
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| "Public key is not 32 bytes".to_string())?,
-                &tag,
-            )
+            .generate_re_key(&recipient, &tag)?
             .into())
     }
 
     /// Re-decrypt the ReEncryptedMessage.
     fn re_decrypt(&self, data: ReEncryptedMessage) -> Result<Vec<u8>, String> {
-        Ok(self
-            .recryptor
-            .borrow()
-            .re_decrypt(&(data.try_into().map_err(|_| "Invalid ReEncrypted Message")?)))
+        Ok(self.recryptor.borrow().re_decrypt(&data.try_into()?)?)
     }
 }
 
@@ -100,17 +89,15 @@ impl From<recrypted_core::EncryptedMessage> for EncryptedMessage {
 }
 
 impl TryFrom<EncryptedMessage> for recrypted_core::EncryptedMessage {
-    type Error = ();
+    type Error = String;
 
     fn try_from(value: EncryptedMessage) -> Result<Self, Self::Error> {
-        let emsg = recrypted_core::EncryptedMessage::default()
+        Ok(recrypted_core::EncryptedMessage::default()
             .with_tag(&value.tag)
-            .with_encrypted_key(&value.encrypted_key.try_into().map_err(|_| ())?)
+            .with_encrypted_key(&bytes32(&value.encrypted_key, "encrypted_key")?)
             .with_encrypted_data(&value.encrypted_data)
             .with_message_checksum(&value.message_checksum)
-            .with_overall_checksum(&value.overall_checksum);
-
-        Ok(emsg)
+            .with_overall_checksum(&value.overall_checksum))
     }
 }
 
@@ -125,15 +112,13 @@ impl From<recrypted_core::ReKey> for ReKey {
 }
 
 impl TryFrom<ReKey> for recrypted_core::ReKey {
-    type Error = ();
+    type Error = String;
 
     fn try_from(value: ReKey) -> Result<Self, Self::Error> {
-        let rkey = recrypted_core::ReKey::default()
-            .with_r_1(&value.r_one.try_into().map_err(|_| ())?)
-            .with_r_2(&value.r_two.try_into().map_err(|_| ())?)
-            .with_r_3(&value.r_three.try_into().map_err(|_| ())?);
-
-        Ok(rkey)
+        Ok(recrypted_core::ReKey::default()
+            .with_r_1(&bytes32(&value.r_one, "r_1")?)
+            .with_r_2(&bytes32(&value.r_two, "r_2")?)
+            .with_r_3(&bytes32(&value.r_three, "r_3")?))
     }
 }
 
@@ -153,28 +138,11 @@ impl TryFrom<ReEncryptedMessage> for recrypted_core::ReEncryptedMessage {
     type Error = String;
 
     fn try_from(value: ReEncryptedMessage) -> Result<Self, Self::Error> {
-        let remsg = recrypted_core::ReEncryptedMessage::default()
-            .with_d_1(
-                &value
-                    .d_one
-                    .try_into()
-                    .map_err(|_| "Invalid d_1, expected 32 bytes")?,
-            )
+        Ok(recrypted_core::ReEncryptedMessage::default()
+            .with_d_1(&bytes32(&value.d_one, "d_1")?)
             .with_d_2(&value.d_two)
             .with_d_3(&value.d_three)
-            .with_d_4(
-                &value
-                    .d_four
-                    .try_into()
-                    .map_err(|_| "Invalid d_4, expected 32 bytes")?,
-            )
-            .with_d_5(
-                &value
-                    .d_five
-                    .try_into()
-                    .map_err(|_| "Invalid d_5, expected 32 bytes")?,
-            );
-
-        Ok(remsg)
+            .with_d_4(&bytes32(&value.d_four, "d_4")?)
+            .with_d_5(&bytes32(&value.d_five, "d_5")?))
     }
 }
