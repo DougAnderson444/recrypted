@@ -32,7 +32,7 @@ interface provider {
     constructor(seed: list<u8>); 
 
     /// Self-encrypt the data with the tag.
-    self-encrypt: func(data: list<u8>, tag: list<u8>) -> encrypted-message;
+    self-encrypt: func(data: list<u8>, tag: list<u8>) -> result<encrypted-message, string>;
 
     /// Self-decrypt the data.
     self-decrypt: func(data: encrypted-message) -> result<list<u8>, string>;

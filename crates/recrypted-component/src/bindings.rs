@@ -231,51 +231,81 @@ pub mod exports {
                         _rt::Vec::from_raw_parts(arg3.cast(), len1, len1),
                     );
                     let ptr3 = (&raw mut _RET_AREA.0).cast::<u8>();
-                    let EncryptedMessage {
-                        tag: tag4,
-                        encrypted_key: encrypted_key4,
-                        encrypted_data: encrypted_data4,
-                        message_checksum: message_checksum4,
-                        overall_checksum: overall_checksum4,
-                    } = result2;
-                    let vec5 = (tag4).into_boxed_slice();
-                    let ptr5 = vec5.as_ptr().cast::<u8>();
-                    let len5 = vec5.len();
-                    ::core::mem::forget(vec5);
-                    *ptr3.add(::core::mem::size_of::<*const u8>()).cast::<usize>() = len5;
-                    *ptr3.add(0).cast::<*mut u8>() = ptr5.cast_mut();
-                    let vec6 = (encrypted_key4).into_boxed_slice();
-                    let ptr6 = vec6.as_ptr().cast::<u8>();
-                    let len6 = vec6.len();
-                    ::core::mem::forget(vec6);
-                    *ptr3.add(3 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len6;
-                    *ptr3
-                        .add(2 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>() = ptr6.cast_mut();
-                    let vec7 = (encrypted_data4).into_boxed_slice();
-                    let ptr7 = vec7.as_ptr().cast::<u8>();
-                    let len7 = vec7.len();
-                    ::core::mem::forget(vec7);
-                    *ptr3.add(5 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len7;
-                    *ptr3
-                        .add(4 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>() = ptr7.cast_mut();
-                    let vec8 = (message_checksum4).into_boxed_slice();
-                    let ptr8 = vec8.as_ptr().cast::<u8>();
-                    let len8 = vec8.len();
-                    ::core::mem::forget(vec8);
-                    *ptr3.add(7 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len8;
-                    *ptr3
-                        .add(6 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>() = ptr8.cast_mut();
-                    let vec9 = (overall_checksum4).into_boxed_slice();
-                    let ptr9 = vec9.as_ptr().cast::<u8>();
-                    let len9 = vec9.len();
-                    ::core::mem::forget(vec9);
-                    *ptr3.add(9 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len9;
-                    *ptr3
-                        .add(8 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>() = ptr9.cast_mut();
+                    match result2 {
+                        Ok(e) => {
+                            *ptr3.add(0).cast::<u8>() = (0i32) as u8;
+                            let EncryptedMessage {
+                                tag: tag4,
+                                encrypted_key: encrypted_key4,
+                                encrypted_data: encrypted_data4,
+                                message_checksum: message_checksum4,
+                                overall_checksum: overall_checksum4,
+                            } = e;
+                            let vec5 = (tag4).into_boxed_slice();
+                            let ptr5 = vec5.as_ptr().cast::<u8>();
+                            let len5 = vec5.len();
+                            ::core::mem::forget(vec5);
+                            *ptr3
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len5;
+                            *ptr3
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr5.cast_mut();
+                            let vec6 = (encrypted_key4).into_boxed_slice();
+                            let ptr6 = vec6.as_ptr().cast::<u8>();
+                            let len6 = vec6.len();
+                            ::core::mem::forget(vec6);
+                            *ptr3
+                                .add(4 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len6;
+                            *ptr3
+                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr6.cast_mut();
+                            let vec7 = (encrypted_data4).into_boxed_slice();
+                            let ptr7 = vec7.as_ptr().cast::<u8>();
+                            let len7 = vec7.len();
+                            ::core::mem::forget(vec7);
+                            *ptr3
+                                .add(6 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len7;
+                            *ptr3
+                                .add(5 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr7.cast_mut();
+                            let vec8 = (message_checksum4).into_boxed_slice();
+                            let ptr8 = vec8.as_ptr().cast::<u8>();
+                            let len8 = vec8.len();
+                            ::core::mem::forget(vec8);
+                            *ptr3
+                                .add(8 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len8;
+                            *ptr3
+                                .add(7 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr8.cast_mut();
+                            let vec9 = (overall_checksum4).into_boxed_slice();
+                            let ptr9 = vec9.as_ptr().cast::<u8>();
+                            let len9 = vec9.len();
+                            ::core::mem::forget(vec9);
+                            *ptr3
+                                .add(10 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len9;
+                            *ptr3
+                                .add(9 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr9.cast_mut();
+                        }
+                        Err(e) => {
+                            *ptr3.add(0).cast::<u8>() = (1i32) as u8;
+                            let vec10 = (e.into_bytes()).into_boxed_slice();
+                            let ptr10 = vec10.as_ptr().cast::<u8>();
+                            let len10 = vec10.len();
+                            ::core::mem::forget(vec10);
+                            *ptr3
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len10;
+                            *ptr3
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr10.cast_mut();
+                        }
+                    };
                     ptr3
                 }
                 #[doc(hidden)]
@@ -283,49 +313,65 @@ pub mod exports {
                 pub unsafe fn __post_return_method_recrypt_self_encrypt<T: GuestRecrypt>(
                     arg0: *mut u8,
                 ) {
-                    let l0 = *arg0.add(0).cast::<*mut u8>();
-                    let l1 = *arg0
-                        .add(::core::mem::size_of::<*const u8>())
-                        .cast::<usize>();
-                    let base2 = l0;
-                    let len2 = l1;
-                    _rt::cabi_dealloc(base2, len2 * 1, 1);
-                    let l3 = *arg0
-                        .add(2 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>();
-                    let l4 = *arg0
-                        .add(3 * ::core::mem::size_of::<*const u8>())
-                        .cast::<usize>();
-                    let base5 = l3;
-                    let len5 = l4;
-                    _rt::cabi_dealloc(base5, len5 * 1, 1);
-                    let l6 = *arg0
-                        .add(4 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>();
-                    let l7 = *arg0
-                        .add(5 * ::core::mem::size_of::<*const u8>())
-                        .cast::<usize>();
-                    let base8 = l6;
-                    let len8 = l7;
-                    _rt::cabi_dealloc(base8, len8 * 1, 1);
-                    let l9 = *arg0
-                        .add(6 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>();
-                    let l10 = *arg0
-                        .add(7 * ::core::mem::size_of::<*const u8>())
-                        .cast::<usize>();
-                    let base11 = l9;
-                    let len11 = l10;
-                    _rt::cabi_dealloc(base11, len11 * 1, 1);
-                    let l12 = *arg0
-                        .add(8 * ::core::mem::size_of::<*const u8>())
-                        .cast::<*mut u8>();
-                    let l13 = *arg0
-                        .add(9 * ::core::mem::size_of::<*const u8>())
-                        .cast::<usize>();
-                    let base14 = l12;
-                    let len14 = l13;
-                    _rt::cabi_dealloc(base14, len14 * 1, 1);
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l2 = *arg0
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let base3 = l1;
+                            let len3 = l2;
+                            _rt::cabi_dealloc(base3, len3 * 1, 1);
+                            let l4 = *arg0
+                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l5 = *arg0
+                                .add(4 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let base6 = l4;
+                            let len6 = l5;
+                            _rt::cabi_dealloc(base6, len6 * 1, 1);
+                            let l7 = *arg0
+                                .add(5 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l8 = *arg0
+                                .add(6 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let base9 = l7;
+                            let len9 = l8;
+                            _rt::cabi_dealloc(base9, len9 * 1, 1);
+                            let l10 = *arg0
+                                .add(7 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l11 = *arg0
+                                .add(8 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let base12 = l10;
+                            let len12 = l11;
+                            _rt::cabi_dealloc(base12, len12 * 1, 1);
+                            let l13 = *arg0
+                                .add(9 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l14 = *arg0
+                                .add(10 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let base15 = l13;
+                            let len15 = l14;
+                            _rt::cabi_dealloc(base15, len15 * 1, 1);
+                        }
+                        _ => {
+                            let l16 = *arg0
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l17 = *arg0
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            _rt::cabi_dealloc(l16, l17, 1);
+                        }
+                    }
                 }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
@@ -702,7 +748,7 @@ pub mod exports {
                         &self,
                         data: _rt::Vec<u8>,
                         tag: _rt::Vec<u8>,
-                    ) -> EncryptedMessage;
+                    ) -> Result<EncryptedMessage, _rt::String>;
                     /// Self-decrypt the data.
                     fn self_decrypt(
                         &self,
@@ -803,10 +849,10 @@ pub mod exports {
                 struct _RetArea(
                     [::core::mem::MaybeUninit<
                         u8,
-                    >; 10 * ::core::mem::size_of::<*const u8>()],
+                    >; 11 * ::core::mem::size_of::<*const u8>()],
                 );
                 static mut _RET_AREA: _RetArea = _RetArea(
-                    [::core::mem::MaybeUninit::uninit(); 10
+                    [::core::mem::MaybeUninit::uninit(); 11
                         * ::core::mem::size_of::<*const u8>()],
                 );
             }
@@ -1235,27 +1281,27 @@ pub(crate) use __export_recryptor_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 916] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x94\x06\x01A\x02\x01\
-A\x07\x01B\x16\x01p}\x01r\x05\x03tag\0\x0dencrypted-key\0\x0eencrypted-data\0\x10\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 922] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x9a\x06\x01A\x02\x01\
+A\x07\x01B\x17\x01p}\x01r\x05\x03tag\0\x0dencrypted-key\0\x0eencrypted-data\0\x10\
 message-checksum\0\x10overall-checksum\0\x04\0\x11encrypted-message\x03\0\x01\x01\
 r\x03\x05r-one\0\x05r-two\0\x07r-three\0\x04\0\x06re-key\x03\0\x03\x01r\x05\x05d\
 -one\0\x05d-two\0\x07d-three\0\x06d-four\0\x06d-five\0\x04\0\x14re-encrypted-mes\
 sage\x03\0\x05\x04\0\x07recrypt\x03\x01\x01i\x07\x01@\x01\x04seed\0\0\x08\x04\0\x14\
-[constructor]recrypt\x01\x09\x01h\x07\x01@\x03\x04self\x0a\x04data\0\x03tag\0\0\x02\
-\x04\0\x1c[method]recrypt.self-encrypt\x01\x0b\x01j\x01\0\x01s\x01@\x02\x04self\x0a\
-\x04data\x02\0\x0c\x04\0\x1c[method]recrypt.self-decrypt\x01\x0d\x01j\x01\x04\x01\
-s\x01@\x03\x04self\x0a\x0apublic-key\0\x03tag\0\0\x0e\x04\0\x1f[method]recrypt.g\
-enerate-re-key\x01\x0f\x01@\x02\x04self\x0a\x04data\x06\0\x0c\x04\0\x1a[method]r\
-ecrypt.re-decrypt\x01\x10\x04\0\x1ccomponent:recrypted/provider\x05\0\x02\x03\0\0\
-\x11encrypted-message\x02\x03\0\0\x06re-key\x02\x03\0\0\x14re-encrypted-message\x01\
-B\x0a\x02\x03\x02\x01\x01\x04\0\x11encrypted-message\x03\0\0\x02\x03\x02\x01\x02\
-\x04\0\x06re-key\x03\0\x02\x02\x03\x02\x01\x03\x04\0\x14re-encrypted-message\x03\
-\0\x04\x01p}\x01j\x01\x05\x01s\x01@\x03\x0apublic-key\x06\x04data\x01\x06re-key\x03\
-\0\x07\x04\0\x0are-encrypt\x01\x08\x04\0\x19component:recrypted/proxy\x05\x04\x04\
-\0\x1dcomponent:recrypted/recryptor\x04\0\x0b\x0f\x01\0\x09recryptor\x03\0\0\0G\x09\
-producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rus\
-t\x060.41.0";
+[constructor]recrypt\x01\x09\x01h\x07\x01j\x01\x02\x01s\x01@\x03\x04self\x0a\x04\
+data\0\x03tag\0\0\x0b\x04\0\x1c[method]recrypt.self-encrypt\x01\x0c\x01j\x01\0\x01\
+s\x01@\x02\x04self\x0a\x04data\x02\0\x0d\x04\0\x1c[method]recrypt.self-decrypt\x01\
+\x0e\x01j\x01\x04\x01s\x01@\x03\x04self\x0a\x0apublic-key\0\x03tag\0\0\x0f\x04\0\
+\x1f[method]recrypt.generate-re-key\x01\x10\x01@\x02\x04self\x0a\x04data\x06\0\x0d\
+\x04\0\x1a[method]recrypt.re-decrypt\x01\x11\x04\0\x1ccomponent:recrypted/provid\
+er\x05\0\x02\x03\0\0\x11encrypted-message\x02\x03\0\0\x06re-key\x02\x03\0\0\x14r\
+e-encrypted-message\x01B\x0a\x02\x03\x02\x01\x01\x04\0\x11encrypted-message\x03\0\
+\0\x02\x03\x02\x01\x02\x04\0\x06re-key\x03\0\x02\x02\x03\x02\x01\x03\x04\0\x14re\
+-encrypted-message\x03\0\x04\x01p}\x01j\x01\x05\x01s\x01@\x03\x0apublic-key\x06\x04\
+data\x01\x06re-key\x03\0\x07\x04\0\x0are-encrypt\x01\x08\x04\0\x19component:recr\
+ypted/proxy\x05\x04\x04\0\x1dcomponent:recrypted/recryptor\x04\0\x0b\x0f\x01\0\x09\
+recryptor\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.\
+227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {
